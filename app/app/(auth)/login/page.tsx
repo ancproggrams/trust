@@ -19,7 +19,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  const { login } = useAuth();
+  const { login, demoLogin } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,6 +55,24 @@ export default function LoginPage() {
       }
     } catch (error) {
       setError('Er is een fout opgetreden. Probeer het opnieuw.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const success = await demoLogin();
+      if (success) {
+        router.push('/dashboard');
+      } else {
+        setError('Demo login mislukt. Probeer het opnieuw.');
+      }
+    } catch (error) {
+      setError('Er is een fout opgetreden bij demo login.');
     } finally {
       setIsLoading(false);
     }
@@ -165,10 +183,33 @@ export default function LoginPage() {
               </p>
             </div>
 
+            {/* Demo Login */}
+            <div className="text-center pt-4 border-t border-gray-100">
+              <p className="text-sm text-muted-foreground mb-3">
+                Wil je ZZP Trust eerst uitproberen?
+              </p>
+              <Button 
+                type="button"
+                variant="outline" 
+                className="w-full h-12 text-base font-medium"
+                onClick={handleDemoLogin}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Demo wordt geladen...
+                  </>
+                ) : (
+                  'Start Demo'
+                )}
+              </Button>
+            </div>
+
             {/* Demo Info */}
             <div className="text-center pt-2">
               <p className="text-xs text-muted-foreground">
-                Demo: gebruik elk geldig emailadres met minimaal 6 karakters wachtwoord
+                Demo: volledige functionaliteit met voorbeelddata
               </p>
             </div>
           </CardContent>

@@ -178,6 +178,20 @@ export function isValidEmail(email: string): boolean {
   return emailRegex.test(email);
 }
 
+// Validate IBAN format
+export function isValidIBAN(iban: string): boolean {
+  // Basic IBAN validation - remove spaces and check format
+  const cleanIban = iban.replace(/\s/g, '').toLowerCase();
+  
+  // Check if it's a Dutch IBAN (starts with NL and is 18 characters)
+  if (cleanIban.startsWith('nl') && cleanIban.length === 18) {
+    return /^nl\d{2}[a-z]{4}\d{10}$/.test(cleanIban);
+  }
+  
+  // Basic check for other European IBANs (15-34 characters, starts with 2 letters)
+  return /^[a-z]{2}\d{2}[a-z0-9]{4,30}$/.test(cleanIban) && cleanIban.length >= 15 && cleanIban.length <= 34;
+}
+
 // Generate random ID
 export function generateId(): string {
   return Math.random().toString(36).substr(2, 9);

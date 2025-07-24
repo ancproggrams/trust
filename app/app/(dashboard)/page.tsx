@@ -21,7 +21,11 @@ import {
   Receipt,
   PiggyBank,
   AlertTriangle,
-  Calculator
+  Calculator,
+  Building2,
+  UserCheck,
+  CreditCardIcon,
+  PlayCircle
 } from 'lucide-react';
 import { 
   mockInvoices, 
@@ -34,7 +38,10 @@ import {
   getTotalTaxReserved,
   getCurrentYearRevenue,
   getEstimatedYearEndTax,
-  mockBTWRecords
+  mockBTWRecords,
+  getExtendedDashboardStats,
+  getPendingValidations,
+  getPendingPayments
 } from '@/lib/mock-data';
 import { 
   formatCurrency, 
@@ -46,25 +53,13 @@ import {
 } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/auth-context';
 
 export default function DashboardPage() {
-  // Calculate stats
-  const totalRevenue = mockInvoices
-    .filter(invoice => invoice.status === 'paid')
-    .reduce((sum, invoice) => sum + invoice.amount, 0);
+  const { isDemo, user } = useAuth();
   
-  const pendingInvoices = mockInvoices.filter(invoice => invoice.status === 'sent').length;
-  const totalClients = mockClients.length;
-  const upcomingAppointmentsCount = mockAppointments.filter(
-    appointment => appointment.status === 'scheduled' && appointment.date > new Date()
-  ).length;
-
-  // BTW/Belasting stats
-  const totalBTWOwed = getTotalBTWOwed();
-  const totalBTWPrepaid = getTotalBTWPrepaid();
-  const totalTaxReserved = getTotalTaxReserved();
-  const currentYearRevenue = getCurrentYearRevenue();
-  const estimatedYearEndTax = getEstimatedYearEndTax();
+  // Get extended dashboard stats
+  const stats = getExtendedDashboardStats();
   
   // Find next BTW deadline
   const nextBTWPayment = mockBTWRecords
@@ -73,12 +68,31 @@ export default function DashboardPage() {
 
   const recentInvoices = getRecentInvoices(5);
   const upcomingAppointments = getUpcomingAppointments(5);
+  const pendingValidations = getPendingValidations();
+  const pendingPayments = getPendingPayments();
 
   return (
     <div className="space-y-8">
+      {/* Demo Indicator */}
+      {isDemo && (
+        <div className="px-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center space-x-3">
+            <PlayCircle className="h-5 w-5 text-blue-600" />
+            <div>
+              <p className="text-sm font-medium text-blue-900">
+                Demo Modus Actief
+              </p>
+              <p className="text-xs text-blue-700">
+                Je gebruikt ZZP Trust in demo modus met voorbeelddata. Alle functionaliteiten zijn beschikbaar voor testing.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Header 
-        title="Welkom terug!" 
-        description="Hier is een overzicht van je ZZP activiteiten" 
+        title={isDemo ? "Demo Dashboard" : "Welkom terug!"} 
+        description={isDemo ? "Ontdek ZZP Trust met voorbeelddata" : "Hier is een overzicht van je ZZP activiteiten"} 
       />
       
       <div className="px-6">
@@ -86,29 +100,52 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
           <StatsCard
             title="Totale Omzet"
-            value={formatCurrency(totalRevenue)}
+            value={formatCurrency(stats.totalRevenue)}
             description="Dit jaar"
             icon={TrendingUp}
             trend={{ value: 12.5, isPositive: true }}
           />
           <StatsCard
             title="Openstaande Facturen"
-            value={pendingInvoices}
+            value={stats.pendingInvoices}
             description="Wachten op betaling"
             icon={CreditCard}
           />
           <StatsCard
             title="Actieve Klanten"
-            value={totalClients}
+            value={stats.totalClients}
             description="Totaal aantal"
             icon={Users}
             trend={{ value: 8.2, isPositive: true }}
           />
           <StatsCard
             title="Geplande Afspraken"
-            value={upcomingAppointmentsCount}
+            value={stats.upcomingAppointments}
             description="Komende week"
             icon={Calendar}
+          />
+        </div>
+
+        {/* Stats Grid - Crediteuren */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <StatsCard
+            title="Totale Crediteuren"
+            value={stats.totalCreditors}
+            description="Geregistreerde leveranciers"
+            icon={Building2}
+            trend={{ value: 5.3, isPositive: true }}
+          />
+          <StatsCard
+            title="Validaties Vereist"
+            value={stats.pendingCreditorValidations}
+            description="Wachten op goedkeuring"
+            icon={UserCheck}
+          />
+          <StatsCard
+            title="Openstaande Betalingen"
+            value={stats.pendingPayments}
+            description="Te verwerken uitbetalingen"
+            icon={CreditCardIcon}
           />
         </div>
 
@@ -116,28 +153,28 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatsCard
             title="BTW Openstaand"
-            value={formatCurrency(totalBTWOwed)}
+            value={formatCurrency(stats.totalBTWOwed)}
             description={nextBTWPayment ? `Vervalt ${formatDate(nextBTWPayment.dueDate)}` : "Geen openstaande BTW"}
             icon={Receipt}
-            trend={totalBTWOwed > 0 ? { value: 0, isPositive: false } : undefined}
+            trend={stats.totalBTWOwed > 0 ? { value: 0, isPositive: false } : undefined}
           />
           <StatsCard
             title="BTW Vooruitbetaald"
-            value={formatCurrency(totalBTWPrepaid)}
+            value={formatCurrency(stats.totalBTWPrepaid)}
             description="Dit kwartaal"
             icon={PiggyBank}
           />
           <StatsCard
             title="Belasting Gereserveerd"
-            value={formatCurrency(totalTaxReserved)}
+            value={formatCurrency(stats.totalTaxReserved)}
             description="Voor jaaraangifte"
             icon={Calculator}
             trend={{ value: 15.3, isPositive: true }}
           />
           <StatsCard
             title="Geschatte Jaarbelasting"
-            value={formatCurrency(estimatedYearEndTax)}
-            description={`Op ${formatCurrency(currentYearRevenue)} omzet`}
+            value={formatCurrency(stats.estimatedYearEndTax)}
+            description={`Op ${formatCurrency(stats.currentYearRevenue)} omzet`}
             icon={AlertTriangle}
           />
         </div>

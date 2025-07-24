@@ -19,6 +19,8 @@ import {
   Calculator
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getPendingValidations, getTotalBTWOwed } from '@/lib/mock-data';
+import { Badge } from '@/components/ui/badge';
 
 const navigationItems = [
   {
@@ -37,9 +39,22 @@ const navigationItems = [
     icon: CreditCard,
   },
   {
+    name: 'Crediteuren',
+    href: '/dashboard/creditors',
+    icon: Building2,
+    badge: () => {
+      const pending = getPendingValidations().length;
+      return pending > 0 ? pending.toString() : undefined;
+    }
+  },
+  {
     name: 'BTW & Belasting',
     href: '/dashboard/tax',
     icon: Receipt,
+    badge: () => {
+      const btw = getTotalBTWOwed();
+      return btw > 0 ? 'Te betalen' : undefined;
+    }
   },
   {
     name: 'Afspraken',
@@ -78,6 +93,8 @@ export function Sidebar() {
       <nav className="flex-1 space-y-1 p-4">
         {navigationItems.map((item) => {
           const isActive = pathname === item.href;
+          const badgeText = item.badge ? item.badge() : undefined;
+          
           return (
             <Link
               key={item.name}
@@ -95,7 +112,15 @@ export function Sidebar() {
                   isActive ? 'text-primary' : 'text-gray-400 group-hover:text-gray-500'
                 )}
               />
-              {item.name}
+              <span className="flex-1">{item.name}</span>
+              {badgeText && (
+                <Badge 
+                  variant={item.name === 'Crediteuren' ? 'destructive' : 'secondary'} 
+                  className="ml-2 text-xs"
+                >
+                  {badgeText}
+                </Badge>
+              )}
             </Link>
           );
         })}

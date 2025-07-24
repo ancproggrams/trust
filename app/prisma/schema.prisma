@@ -1,3 +1,4 @@
+
 generator client {
     provider = "prisma-client-js"
     binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
@@ -7,4 +8,451 @@ generator client {
 datasource db {
     provider = "postgresql"
     url      = env("DATABASE_URL")
+}
+
+// Core User model - extended for onboarding
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Profile information
+  profile   UserProfile?
+  
+  // Demo related
+  isDemo    Boolean @default(false)
+  demoExpiresAt DateTime?
+  
+  // Relations
+  clients     Client[]
+  invoices    Invoice[]
+  appointments Appointment[]
+  documents   Document[]
+  auditLogs   AuditLog[]
+  creditors   Creditor[]
+  
+  @@map("users")
+}
+
+// Extended user profile for business information
+model UserProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Business details (KvK registration)
+  companyName       String?
+  kvkNumber        String?   @unique
+  vatNumber        String?   @unique
+  
+  // Contact information
+  phone            String?
+  address          String?
+  postalCode       String?
+  city            String?
+  country          String   @default("Netherlands")
+  
+  // Banking details
+  iban            String?
+  bankName        String?
+  accountHolder   String?
+  
+  // Validation status
+  validationStatus ValidationStatus @default(PENDING)
+  validatedAt      DateTime?
+  validatedBy      String?
+  rejectionReason  String?
+  
+  // Business type
+  businessType     BusinessType @default(ZZP)
+  
+  // Onboarding
+  onboardingStep   OnboardingStep @default(BASIC_INFO)
+  onboardingCompletedAt DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("user_profiles")
+}
+
+// Creditors/Suppliers model
+model Creditor {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Basic information
+  name        String
+  email       String?
+  phone       String?
+  
+  // Business details
+  companyName String?
+  kvkNumber   String?
+  vatNumber   String?
+  
+  // Contact details
+  address     String?
+  postalCode  String?
+  city        String?
+  country     String   @default("Netherlands")
+  
+  // Banking information
+  iban        String?
+  bankName    String?
+  accountHolder String?
+  
+  // Validation
+  validationStatus ValidationStatus @default(PENDING)
+  validatedAt      DateTime?
+  validatedBy      String?
+  rejectionReason  String?
+  
+  // Settings
+  isActive    Boolean @default(true)
+  
+  // Relations
+  validations CreditorValidation[]
+  payments    Payment[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("creditors")
+}
+
+// Creditor validation process tracking
+model CreditorValidation {
+  id          String   @id @default(cuid())
+  creditorId  String
+  creditor    Creditor @relation(fields: [creditorId], references: [id], onDelete: Cascade)
+  
+  validationType ValidationMethod
+  status         ValidationStatus @default(PENDING)
+  
+  // Validation details
+  requestedBy    String
+  requestedAt    DateTime @default(now())
+  validatedBy    String?
+  validatedAt    DateTime?
+  
+  // Documentation
+  documents      String[] // Array of document URLs/paths
+  notes          String?
+  rejectionReason String?
+  
+  // Automated validation results
+  kvkValidated   Boolean?
+  ibanValidated  Boolean?
+  emailValidated Boolean?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("creditor_validations")
+}
+
+// Payment tracking for creditors
+model Payment {
+  id          String   @id @default(cuid())
+  creditorId  String
+  creditor    Creditor @relation(fields: [creditorId], references: [id], onDelete: Cascade)
+  
+  amount      Decimal  @db.Decimal(10,2)
+  description String?
+  reference   String?
+  
+  status      PaymentStatus @default(PENDING)
+  
+  scheduledAt DateTime?
+  processedAt DateTime?
+  
+  // Payment method
+  method      PaymentMethod @default(BANK_TRANSFER)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("payments")
+}
+
+// Audit logging for all critical actions
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  action    AuditAction
+  entity    String   // e.g., "Creditor", "Payment", "User"
+  entityId  String   // ID of the affected entity
+  
+  // Change details
+  oldValues Json?
+  newValues Json?
+  
+  // Context
+  ipAddress String?
+  userAgent String?
+  
+  createdAt DateTime @default(now())
+  
+  @@map("audit_logs")
+}
+
+// Core business entities (existing)
+model Client {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name         String
+  email        String
+  phone        String
+  company      String?
+  address      String?
+  
+  totalInvoiced Decimal @db.Decimal(10,2) @default(0)
+  
+  // Relations
+  invoices     Invoice[]
+  appointments Appointment[]
+  documents    Document[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("clients")
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  invoiceNumber String   @unique
+  
+  // Amounts
+  amount        Decimal  @db.Decimal(10,2) // Excl. BTW
+  btwAmount     Decimal  @db.Decimal(10,2) // BTW bedrag
+  totalAmount   Decimal  @db.Decimal(10,2) // Incl. BTW
+  btwRate       Int      // BTW percentage
+  
+  status        InvoiceStatus @default(DRAFT)
+  dueDate       DateTime
+  description   String
+  
+  // Relations
+  items         InvoiceItem[]
+  btwRecord     BTWRecord?
+  taxReservation TaxReservation?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  description String
+  quantity    Int
+  rate        Decimal  @db.Decimal(10,2)
+  amount      Decimal  @db.Decimal(10,2)
+  
+  createdAt DateTime @default(now())
+  
+  @@map("invoice_items")
+}
+
+model Appointment {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  title       String
+  description String?
+  date        DateTime
+  duration    Int      // in minutes
+  status      AppointmentStatus @default(SCHEDULED)
+  location    String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("appointments")
+}
+
+model Document {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId      String?
+  client        Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  
+  title         String
+  description   String?
+  type          DocumentType @default(OTHER)
+  status        DocumentStatus @default(DRAFT)
+  
+  content       String?
+  fileUrl       String?
+  signatureUrl  String?
+  
+  signedAt      DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("documents")
+}
+
+// BTW/Tax related models
+model BTWRecord {
+  id        String   @id @default(cuid())
+  invoiceId String   @unique
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  amount    Decimal  @db.Decimal(10,2) // Excl. BTW
+  btwAmount Decimal  @db.Decimal(10,2) // BTW bedrag
+  btwRate   Int      // BTW percentage
+  
+  status    BTWStatus @default(PENDING)
+  quarter   String   // Q1-2024
+  dueDate   DateTime
+  paidDate  DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("btw_records")
+}
+
+model TaxReservation {
+  id              String   @id @default(cuid())
+  invoiceId       String   @unique
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  amount          Decimal  @db.Decimal(10,2) // Gereserveerd bedrag
+  reservationRate Int      // Percentage
+  year            Int
+  
+  status          TaxReservationStatus @default(ACTIVE)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("tax_reservations")
+}
+
+// Enums
+enum ValidationStatus {
+  PENDING
+  IN_REVIEW
+  VALIDATED
+  REJECTED
+  EXPIRED
+}
+
+enum BusinessType {
+  ZZP
+  BV
+  VOF
+  EENMANSZAAK
+  OTHER
+}
+
+enum OnboardingStep {
+  BASIC_INFO
+  BUSINESS_DETAILS
+  BANKING_INFO
+  VERIFICATION
+  COMPLETED
+}
+
+enum ValidationMethod {
+  AUTOMATIC
+  MANUAL
+  HYBRID
+}
+
+enum PaymentStatus {
+  PENDING
+  SCHEDULED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  SEPA_DIRECT_DEBIT
+  MANUAL
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  VALIDATE
+  REJECT
+  APPROVE
+  PAYMENT_PROCESS
+  STATUS_CHANGE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum DocumentType {
+  CONTRACT
+  INVOICE
+  AGREEMENT
+  OTHER
+}
+
+enum DocumentStatus {
+  DRAFT
+  PENDING_SIGNATURE
+  SIGNED
+  COMPLETED
+  CANCELLED
+}
+
+enum BTWStatus {
+  PENDING
+  RESERVED
+  PREPAID
+  PAID
+  OVERDUE
+}
+
+enum TaxReservationStatus {
+  ACTIVE
+  USED
+  RELEASED
 }

@@ -1,5 +1,9 @@
 
-import { Client, Invoice, Appointment, Document, InvoiceItem, BTWRecord, TaxReservation, TaxSettings } from './types';
+import { 
+  Client, Invoice, Appointment, Document, InvoiceItem, BTWRecord, TaxReservation, TaxSettings,
+  Creditor, CreditorValidation, Payment, AuditLog, UserProfile, DemoSettings,
+  ValidationStatus, BusinessType, OnboardingStep, ValidationMethod, PaymentStatus, PaymentMethod, AuditAction
+} from './types';
 import { calculateBTW, calculateTotalAmount, getBTWQuarter, getNextBTWDeadline, calculateTaxReservation } from './utils';
 
 // Mock Clients Data
@@ -413,4 +417,343 @@ export const getCurrentYearRevenue = (): number => {
 export const getEstimatedYearEndTax = (): number => {
   const currentYearRevenue = getCurrentYearRevenue();
   return calculateTaxReservation(currentYearRevenue, mockTaxSettings.taxReservationRate);
+};
+
+// Mock User Profiles Data
+export const mockUserProfiles: UserProfile[] = [
+  {
+    id: '1',
+    userId: '1',
+    companyName: 'Jan Janssen Consultancy',
+    kvkNumber: '12345678',
+    vatNumber: 'NL123456789B01',
+    phone: '+31 6 12345678',
+    address: 'Hoofdstraat 123',
+    postalCode: '1000AB',
+    city: 'Amsterdam',
+    country: 'Netherlands',
+    iban: 'NL91ABNA0417164300',
+    bankName: 'ABN AMRO',
+    accountHolder: 'Jan Janssen',
+    validationStatus: 'VALIDATED' as ValidationStatus,
+    validatedAt: new Date('2024-01-20'),
+    validatedBy: 'system',
+    businessType: 'ZZP' as BusinessType,
+    onboardingStep: 'COMPLETED' as OnboardingStep,
+    onboardingCompletedAt: new Date('2024-01-20'),
+    createdAt: new Date('2024-01-15'),
+    updatedAt: new Date('2024-01-20'),
+  },
+];
+
+// Mock Creditors Data
+export const mockCreditors: Creditor[] = [
+  {
+    id: '1',
+    userId: '1',
+    name: 'TechSupport B.V.',
+    email: 'facturen@techsupport.nl',
+    phone: '+31 20 123 4567',
+    companyName: 'TechSupport B.V.',
+    kvkNumber: '87654321',
+    vatNumber: 'NL987654321B01',
+    address: 'Techstraat 45',
+    postalCode: '1100BB',
+    city: 'Amsterdam',
+    country: 'Netherlands',
+    iban: 'NL12RABO0123456789',
+    bankName: 'Rabobank',
+    accountHolder: 'TechSupport B.V.',
+    validationStatus: 'VALIDATED' as ValidationStatus,
+    validatedAt: new Date('2024-06-15'),
+    validatedBy: 'admin',
+    isActive: true,
+    createdAt: new Date('2024-06-01'),
+    updatedAt: new Date('2024-06-15'),
+  },
+  {
+    id: '2',
+    userId: '1',
+    name: 'Office Solutions',
+    email: 'info@officesolutions.nl',
+    phone: '+31 30 234 5678',
+    companyName: 'Office Solutions Nederland',
+    kvkNumber: '56789012',
+    vatNumber: 'NL567890123B01',
+    address: 'Kantoorpark 12',
+    postalCode: '3500CD',
+    city: 'Utrecht',
+    country: 'Netherlands',
+    iban: 'NL34ING0567890123',
+    bankName: 'ING Bank',
+    accountHolder: 'Office Solutions Nederland',
+    validationStatus: 'PENDING' as ValidationStatus,
+    isActive: true,
+    createdAt: new Date('2024-07-15'),
+    updatedAt: new Date('2024-07-15'),
+  },
+  {
+    id: '3',
+    userId: '1',
+    name: 'Marketing Experts',
+    email: 'billing@marketingexperts.nl',
+    phone: '+31 10 345 6789',
+    companyName: 'Marketing Experts Rotterdam',
+    kvkNumber: '34567890',
+    vatNumber: 'NL345678901B01',
+    address: 'Marketingweg 89',
+    postalCode: '3000GH',
+    city: 'Rotterdam',
+    country: 'Netherlands',
+    iban: 'NL56BUNQ2345678901',
+    bankName: 'Bunq',
+    accountHolder: 'Marketing Experts Rotterdam',
+    validationStatus: 'IN_REVIEW' as ValidationStatus,
+    isActive: true,
+    createdAt: new Date('2024-07-20'),
+    updatedAt: new Date('2024-07-22'),
+  },
+];
+
+// Mock Creditor Validations Data
+export const mockCreditorValidations: CreditorValidation[] = [
+  {
+    id: '1',
+    creditorId: '1',
+    validationType: 'AUTOMATIC' as ValidationMethod,
+    status: 'VALIDATED' as ValidationStatus,
+    requestedBy: '1',
+    requestedAt: new Date('2024-06-01'),
+    validatedBy: 'system',
+    validatedAt: new Date('2024-06-15'),
+    documents: [],
+    notes: 'Automatische validatie succesvol. KvK en IBAN geverifieerd.',
+    kvkValidated: true,
+    ibanValidated: true,
+    emailValidated: true,
+    createdAt: new Date('2024-06-01'),
+    updatedAt: new Date('2024-06-15'),
+  },
+  {
+    id: '2',
+    creditorId: '2',
+    validationType: 'MANUAL' as ValidationMethod,
+    status: 'PENDING' as ValidationStatus,
+    requestedBy: '1',
+    requestedAt: new Date('2024-07-15'),
+    documents: ['kvk-uittreksel.pdf', 'iban-bevestiging.pdf'],
+    notes: 'Handmatige validatie vereist vanwege ontbrekende automatische verificatie.',
+    kvkValidated: false,
+    ibanValidated: false,
+    emailValidated: true,
+    createdAt: new Date('2024-07-15'),
+    updatedAt: new Date('2024-07-15'),
+  },
+  {
+    id: '3',
+    creditorId: '3',
+    validationType: 'HYBRID' as ValidationMethod,
+    status: 'IN_REVIEW' as ValidationStatus,
+    requestedBy: '1',
+    requestedAt: new Date('2024-07-20'),
+    documents: ['business-certificate.pdf'],
+    notes: 'Gedeeltelijke automatische validatie. Handmatige review van bedrijfsgegevens.',
+    kvkValidated: true,
+    ibanValidated: false,
+    emailValidated: true,
+    createdAt: new Date('2024-07-20'),
+    updatedAt: new Date('2024-07-22'),
+  },
+];
+
+// Mock Payments Data
+export const mockPayments: Payment[] = [
+  {
+    id: '1',
+    creditorId: '1',
+    creditorName: 'TechSupport B.V.',
+    amount: 2500.00,
+    description: 'IT ondersteuning Q2 2024',
+    reference: 'REF-2024-001',
+    status: 'COMPLETED' as PaymentStatus,
+    scheduledAt: new Date('2024-07-01'),
+    processedAt: new Date('2024-07-01'),
+    method: 'BANK_TRANSFER' as PaymentMethod,
+    createdAt: new Date('2024-06-25'),
+    updatedAt: new Date('2024-07-01'),
+  },
+  {
+    id: '2',
+    creditorId: '1',
+    creditorName: 'TechSupport B.V.',
+    amount: 1750.00,
+    description: 'Software licenties',
+    reference: 'REF-2024-002',
+    status: 'SCHEDULED' as PaymentStatus,
+    scheduledAt: new Date('2024-08-15'),
+    method: 'BANK_TRANSFER' as PaymentMethod,
+    createdAt: new Date('2024-07-20'),
+    updatedAt: new Date('2024-07-20'),
+  },
+  {
+    id: '3',
+    creditorId: '2',
+    creditorName: 'Office Solutions',
+    amount: 450.00,
+    description: 'Kantoorbenodigdheden',
+    reference: 'REF-2024-003',
+    status: 'PENDING' as PaymentStatus,
+    method: 'BANK_TRANSFER' as PaymentMethod,
+    createdAt: new Date('2024-07-25'),
+    updatedAt: new Date('2024-07-25'),
+  },
+];
+
+// Mock Audit Logs Data
+export const mockAuditLogs: AuditLog[] = [
+  {
+    id: '1',
+    userId: '1',
+    userName: 'Jan Janssen',
+    action: 'LOGIN' as AuditAction,
+    entity: 'User',
+    entityId: '1',
+    ipAddress: '192.168.1.100',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    createdAt: new Date('2024-07-25T09:00:00'),
+  },
+  {
+    id: '2',
+    userId: '1',
+    userName: 'Jan Janssen',
+    action: 'CREATE' as AuditAction,
+    entity: 'Creditor',
+    entityId: '2',
+    newValues: {
+      name: 'Office Solutions',
+      email: 'info@officesolutions.nl',
+      validationStatus: 'PENDING',
+    },
+    ipAddress: '192.168.1.100',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    createdAt: new Date('2024-07-15T14:30:00'),
+  },
+  {
+    id: '3',
+    userId: '1',
+    userName: 'Jan Janssen',
+    action: 'VALIDATE' as AuditAction,
+    entity: 'Creditor',
+    entityId: '1',
+    oldValues: { validationStatus: 'PENDING' },
+    newValues: { validationStatus: 'VALIDATED', validatedAt: '2024-06-15' },
+    ipAddress: '192.168.1.100',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    createdAt: new Date('2024-06-15T11:15:00'),
+  },
+  {
+    id: '4',
+    userId: '1',
+    userName: 'Jan Janssen',
+    action: 'PAYMENT_PROCESS' as AuditAction,
+    entity: 'Payment',
+    entityId: '1',
+    oldValues: { status: 'SCHEDULED' },
+    newValues: { status: 'COMPLETED', processedAt: '2024-07-01' },
+    ipAddress: '192.168.1.100',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    createdAt: new Date('2024-07-01T10:00:00'),
+  },
+];
+
+// Mock Demo Settings
+export const mockDemoSettings: DemoSettings = {
+  isDemo: false,
+  demoDataResetInterval: 60, // 1 hour
+  allowedDemoFeatures: ['INVOICES', 'CLIENTS', 'APPOINTMENTS', 'DOCUMENTS', 'CREDITORS', 'BTW'],
+};
+
+// Helper functions for new data
+export const getCreditorById = (id: string): Creditor | undefined => {
+  return mockCreditors.find(creditor => creditor.id === id);
+};
+
+export const getCreditorsByUserId = (userId: string): Creditor[] => {
+  return mockCreditors.filter(creditor => creditor.userId === userId);
+};
+
+export const getValidatedCreditors = (): Creditor[] => {
+  return mockCreditors.filter(creditor => creditor.validationStatus === 'VALIDATED');
+};
+
+export const getPendingValidations = (): Creditor[] => {
+  return mockCreditors.filter(creditor => creditor.validationStatus === 'PENDING' || creditor.validationStatus === 'IN_REVIEW');
+};
+
+export const getPaymentsByCreditorId = (creditorId: string): Payment[] => {
+  return mockPayments.filter(payment => payment.creditorId === creditorId);
+};
+
+export const getPendingPayments = (): Payment[] => {
+  return mockPayments.filter(payment => payment.status === 'PENDING' || payment.status === 'SCHEDULED');
+};
+
+export const getRecentAuditLogs = (limit: number = 10): AuditLog[] => {
+  return mockAuditLogs
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, limit);
+};
+
+export const getAuditLogsByEntity = (entity: string, entityId: string): AuditLog[] => {
+  return mockAuditLogs
+    .filter(log => log.entity === entity && log.entityId === entityId)
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+};
+
+export const getUserProfileByUserId = (userId: string): UserProfile | undefined => {
+  return mockUserProfiles.find(profile => profile.userId === userId);
+};
+
+// Extended dashboard stats with new data
+export const getExtendedDashboardStats = () => {
+  const baseStats = {
+    totalInvoices: mockInvoices.length,
+    totalRevenue: mockInvoices.reduce((sum, invoice) => sum + invoice.amount, 0),
+    pendingInvoices: mockInvoices.filter(invoice => invoice.status === 'sent' || invoice.status === 'overdue').length,
+    upcomingAppointments: getUpcomingAppointments().length,
+    totalClients: mockClients.length,
+    completedAppointments: mockAppointments.filter(appointment => appointment.status === 'completed').length,
+    totalBTWOwed: getTotalBTWOwed(),
+    totalBTWPrepaid: getTotalBTWPrepaid(),
+    nextBTWPaymentDue: null,
+    totalTaxReserved: getTotalTaxReserved(),
+    currentYearRevenue: getCurrentYearRevenue(),
+    estimatedYearEndTax: getEstimatedYearEndTax(),
+  };
+
+  // Add new stats
+  return {
+    ...baseStats,
+    totalCreditors: mockCreditors.length,
+    pendingCreditorValidations: getPendingValidations().length,
+    pendingPayments: getPendingPayments().length,
+  };
+};
+
+// Demo data helper functions
+export const getDemoData = () => {
+  return {
+    clients: mockClients,
+    invoices: mockInvoices,
+    appointments: mockAppointments,
+    documents: mockDocuments,
+    creditors: mockCreditors,
+    payments: mockPayments,
+  };
+};
+
+export const resetDemoData = () => {
+  // In a real implementation, this would reset the demo data
+  console.log('Demo data reset at:', new Date());
+  return getDemoData();
 };
