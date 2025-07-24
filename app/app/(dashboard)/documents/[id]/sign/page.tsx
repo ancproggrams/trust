@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, FileText, PenTool, RotateCcw, CheckCircle, User } from 'lucide-react';
 import { mockDocuments } from '@/lib/mock-data';
-import { Document } from '@/lib/types';
+import { Document as DocumentType } from '@/lib/types';
 import { formatDate, getDocumentStatusColor, translateStatus } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
@@ -20,7 +20,7 @@ export default function DocumentSignPage() {
   const { user } = useAuth();
   const router = useRouter();
   
-  const [docData, setDocData] = useState<Document | null>(null);
+  const [docData, setDocData] = useState<DocumentType | null>(null);
   const [isSigning, setIsSigning] = useState(false);
   const [signatureData, setSignatureData] = useState<string>('');
   const [hasSignature, setHasSignature] = useState(false);
@@ -60,7 +60,7 @@ export default function DocumentSignPage() {
       // Update document status (in a real app, this would be an API call)
       const updatedDocument = {
         ...docData,
-        status: 'signed' as Document['status'],
+        status: 'signed' as DocumentType['status'],
         signedAt: new Date(),
         signatureUrl: signatureData || canvas.toDataURL(),
       };
@@ -130,7 +130,7 @@ export default function DocumentSignPage() {
           <Alert className="mb-6 border-green-200 bg-green-50">
             <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-800">
-              Dit document is al ondertekend op {document.signedAt ? formatDate(document.signedAt) : 'onbekende datum'}.
+              Dit document is al ondertekend op {docData.signedAt ? formatDate(docData.signedAt) : 'onbekende datum'}.
             </AlertDescription>
           </Alert>
         )}
@@ -146,9 +146,9 @@ export default function DocumentSignPage() {
             </CardHeader>
             <CardContent>
               <div className="prose max-w-none">
-                {document.content ? (
+                {docData.content ? (
                   <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {document.content}
+                    {docData.content}
                   </div>
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
@@ -165,20 +165,20 @@ export default function DocumentSignPage() {
                   <div>
                     <span className="text-muted-foreground">Type:</span>
                     <span className="ml-2 capitalize">
-                      {document.type === 'contract' && 'Contract'}
-                      {document.type === 'invoice' && 'Factuur'}
-                      {document.type === 'agreement' && 'Overeenkomst'}
-                      {document.type === 'other' && 'Overig'}
+                      {docData.type === 'contract' && 'Contract'}
+                      {docData.type === 'invoice' && 'Factuur'}
+                      {docData.type === 'agreement' && 'Overeenkomst'}
+                      {docData.type === 'other' && 'Overig'}
                     </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Aangemaakt:</span>
-                    <span className="ml-2">{formatDate(document.createdAt)}</span>
+                    <span className="ml-2">{formatDate(docData.createdAt)}</span>
                   </div>
-                  {document.description && (
+                  {docData.description && (
                     <div className="col-span-2">
                       <span className="text-muted-foreground">Beschrijving:</span>
-                      <span className="ml-2">{document.description}</span>
+                      <span className="ml-2">{docData.description}</span>
                     </div>
                   )}
                 </div>
@@ -205,16 +205,16 @@ export default function DocumentSignPage() {
                       <span className="font-medium">Document ondertekend</span>
                     </div>
                     <p className="text-sm text-green-700">
-                      Dit document is succesvol ondertekend door {user?.name} op {document.signedAt ? formatDate(document.signedAt) : 'onbekende datum'}.
+                      Dit document is succesvol ondertekend door {user?.name} op {docData.signedAt ? formatDate(docData.signedAt) : 'onbekende datum'}.
                     </p>
                   </div>
                   
-                  {document.signatureUrl && (
+                  {docData.signatureUrl && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-gray-700">Handtekening:</label>
                       <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                         <img 
-                          src={document.signatureUrl} 
+                          src={docData.signatureUrl} 
                           alt="Handtekening" 
                           className="max-w-full h-auto max-h-32"
                         />

@@ -66,7 +66,9 @@ import {
   formatDate, 
   generateId, 
   getInvoiceStatusColor,
-  translateStatus 
+  translateStatus,
+  calculateBTW,
+  calculateTotalAmount
 } from '@/lib/utils';
 
 export default function InvoicesPage() {
@@ -80,6 +82,7 @@ export default function InvoicesPage() {
   const [formData, setFormData] = useState({
     clientId: '',
     amount: '',
+    btwRate: '21',
     description: '',
     dueDate: '',
     status: 'draft' as Invoice['status'],
@@ -101,6 +104,7 @@ export default function InvoicesPage() {
     setFormData({
       clientId: '',
       amount: '',
+      btwRate: '21',
       description: '',
       dueDate: '',
       status: 'draft',
@@ -128,6 +132,7 @@ export default function InvoicesPage() {
     setFormData({
       clientId: invoice.clientId,
       amount: invoice.amount.toString(),
+      btwRate: invoice.btwRate.toString(),
       description: invoice.description,
       dueDate: invoice.dueDate.toISOString().split('T')[0],
       status: invoice.status,
@@ -152,12 +157,20 @@ export default function InvoicesPage() {
       return;
     }
 
+    const amount = parseFloat(formData.amount);
+    const btwRate = parseFloat(formData.btwRate);
+    const btwAmount = calculateBTW(amount, btwRate);
+    const totalAmount = calculateTotalAmount(amount, btwRate);
+
     const newInvoice: Invoice = {
       id: generateId(),
       clientId: formData.clientId,
       clientName: client.name,
       invoiceNumber: generateInvoiceNumber(),
-      amount: parseFloat(formData.amount),
+      amount,
+      btwAmount,
+      totalAmount,
+      btwRate,
       status: formData.status,
       dueDate: new Date(formData.dueDate),
       createdAt: new Date(),
@@ -167,8 +180,8 @@ export default function InvoicesPage() {
           id: generateId(),
           description: formData.description,
           quantity: 1,
-          rate: parseFloat(formData.amount),
-          amount: parseFloat(formData.amount),
+          rate: amount,
+          amount: amount,
         }
       ],
     };
@@ -190,13 +203,21 @@ export default function InvoicesPage() {
       return;
     }
 
+    const amount = parseFloat(formData.amount);
+    const btwRate = parseFloat(formData.btwRate);
+    const btwAmount = calculateBTW(amount, btwRate);
+    const totalAmount = calculateTotalAmount(amount, btwRate);
+
     const updatedInvoices = invoices.map(invoice =>
       invoice.id === selectedInvoice.id
         ? {
             ...invoice,
             clientId: formData.clientId,
             clientName: client.name,
-            amount: parseFloat(formData.amount),
+            amount,
+            btwAmount,
+            totalAmount,
+            btwRate,
             description: formData.description,
             dueDate: new Date(formData.dueDate),
             status: formData.status,
@@ -205,8 +226,8 @@ export default function InvoicesPage() {
                 id: invoice.items[0]?.id || generateId(),
                 description: formData.description,
                 quantity: 1,
-                rate: parseFloat(formData.amount),
-                amount: parseFloat(formData.amount),
+                rate: amount,
+                amount: amount,
               }
             ],
           }
@@ -282,6 +303,7 @@ export default function InvoicesPage() {
                     <TableHead>Factuur</TableHead>
                     <TableHead>Klant</TableHead>
                     <TableHead>Bedrag</TableHead>
+                    <TableHead>BTW</TableHead>
                     <TableHead>Vervaldatum</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Aangemaakt</TableHead>
@@ -304,7 +326,18 @@ export default function InvoicesPage() {
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">
-                          {formatCurrency(invoice.amount)}
+                          {formatCurrency(invoice.totalAmount)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatCurrency(invoice.amount)} excl. BTW
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">
+                          {formatCurrency(invoice.btwAmount)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {invoice.btwRate}%
                         </div>
                       </TableCell>
                       <TableCell>
@@ -423,17 +456,51 @@ export default function InvoicesPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="add-amount">Bedrag *</Label>
-              <Input
-                id="add-amount"
-                type="number"
-                step="0.01"
-                value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                placeholder="0.00"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="add-amount">Bedrag (excl. BTW) *</Label>
+                <Input
+                  id="add-amount"
+                  type="number"
+                  step="0.01"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="add-btwRate">BTW Tarief *</Label>
+                <Select value={formData.btwRate} onValueChange={(value) => setFormData({ ...formData, btwRate: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">0% (Vrijgesteld)</SelectItem>
+                    <SelectItem value="9">9% (Laag tarief)</SelectItem>
+                    <SelectItem value="21">21% (Hoog tarief)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            {formData.amount && formData.btwRate && (
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <div className="text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span>Bedrag excl. BTW:</span>
+                    <span className="font-medium">{formatCurrency(parseFloat(formData.amount) || 0)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>BTW ({formData.btwRate}%):</span>
+                    <span className="font-medium">{formatCurrency(calculateBTW(parseFloat(formData.amount) || 0, parseFloat(formData.btwRate)))}</span>
+                  </div>
+                  <hr className="my-1" />
+                  <div className="flex justify-between font-semibold">
+                    <span>Totaal incl. BTW:</span>
+                    <span>{formatCurrency(calculateTotalAmount(parseFloat(formData.amount) || 0, parseFloat(formData.btwRate)))}</span>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="add-description">Beschrijving *</Label>
               <Textarea
@@ -504,17 +571,51 @@ export default function InvoicesPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-amount">Bedrag *</Label>
-              <Input
-                id="edit-amount"
-                type="number"
-                step="0.01"
-                value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                placeholder="0.00"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-amount">Bedrag (excl. BTW) *</Label>
+                <Input
+                  id="edit-amount"
+                  type="number"
+                  step="0.01"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-btwRate">BTW Tarief *</Label>
+                <Select value={formData.btwRate} onValueChange={(value) => setFormData({ ...formData, btwRate: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">0% (Vrijgesteld)</SelectItem>
+                    <SelectItem value="9">9% (Laag tarief)</SelectItem>
+                    <SelectItem value="21">21% (Hoog tarief)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            {formData.amount && formData.btwRate && (
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <div className="text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span>Bedrag excl. BTW:</span>
+                    <span className="font-medium">{formatCurrency(parseFloat(formData.amount) || 0)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>BTW ({formData.btwRate}%):</span>
+                    <span className="font-medium">{formatCurrency(calculateBTW(parseFloat(formData.amount) || 0, parseFloat(formData.btwRate)))}</span>
+                  </div>
+                  <hr className="my-1" />
+                  <div className="flex justify-between font-semibold">
+                    <span>Totaal incl. BTW:</span>
+                    <span>{formatCurrency(calculateTotalAmount(parseFloat(formData.amount) || 0, parseFloat(formData.btwRate)))}</span>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="edit-description">Beschrijving *</Label>
               <Textarea

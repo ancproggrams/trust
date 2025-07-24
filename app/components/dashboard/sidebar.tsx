@@ -14,7 +14,9 @@ import {
   CreditCard,
   Settings,
   LogOut,
-  Building2
+  Building2,
+  Receipt,
+  Calculator
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +35,11 @@ const navigationItems = [
     name: 'Facturen',
     href: '/dashboard/invoices',
     icon: CreditCard,
+  },
+  {
+    name: 'BTW & Belasting',
+    href: '/dashboard/tax',
+    icon: Receipt,
   },
   {
     name: 'Afspraken',

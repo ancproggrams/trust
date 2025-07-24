@@ -190,3 +190,94 @@ export function truncateText(text: string, maxLength: number): string {
   }
   return text.slice(0, maxLength) + '...';
 }
+
+// BTW/Belasting utility functies
+export function calculateBTW(amount: number, btwRate: number): number {
+  return Math.round(amount * (btwRate / 100) * 100) / 100;
+}
+
+export function calculateAmountExclBTW(totalAmount: number, btwRate: number): number {
+  return Math.round((totalAmount / (1 + btwRate / 100)) * 100) / 100;
+}
+
+export function calculateTotalAmount(amount: number, btwRate: number): number {
+  const btwAmount = calculateBTW(amount, btwRate);
+  return Math.round((amount + btwAmount) * 100) / 100;
+}
+
+export function calculateTaxReservation(amount: number, reservationRate: number): number {
+  return Math.round(amount * (reservationRate / 100) * 100) / 100;
+}
+
+export function getBTWQuarter(date: Date): string {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const quarter = Math.ceil(month / 3);
+  return `Q${quarter}-${year}`;
+}
+
+export function getNextBTWDeadline(quarter: string): Date {
+  const [q, year] = quarter.split('-');
+  const quarterNum = parseInt(q.replace('Q', ''));
+  const yearNum = parseInt(year);
+  
+  // BTW deadline is altijd de laatste dag van de maand na het kwartaal
+  const deadlineMonth = quarterNum * 3; // Q1=maart, Q2=juni, Q3=september, Q4=december
+  return new Date(yearNum, deadlineMonth, 0); // Laatste dag van de maand
+}
+
+export function getBTWStatusColor(status: string): string {
+  switch (status) {
+    case 'paid':
+      return 'text-green-600 bg-green-50';
+    case 'prepaid':
+      return 'text-blue-600 bg-blue-50';
+    case 'reserved':
+      return 'text-orange-600 bg-orange-50';
+    case 'pending':
+      return 'text-red-600 bg-red-50';
+    default:
+      return 'text-gray-600 bg-gray-50';
+  }
+}
+
+export function getTaxReservationStatusColor(status: string): string {
+  switch (status) {
+    case 'active':
+      return 'text-green-600 bg-green-50';
+    case 'used':
+      return 'text-blue-600 bg-blue-50';
+    case 'released':
+      return 'text-gray-600 bg-gray-50';
+    default:
+      return 'text-gray-600 bg-gray-50';
+  }
+}
+
+export function translateBTWStatus(status: string): string {
+  switch (status) {
+    case 'paid':
+      return 'Betaald';
+    case 'prepaid':
+      return 'Vooruitbetaald';
+    case 'reserved':
+      return 'Gereserveerd';
+    case 'pending':
+      return 'Openstaand';
+    default:
+      return status;
+  }
+}
+
+export function translateTaxReservationStatus(status: string): string {
+  switch (status) {
+    case 'active':
+      return 'Actief';
+    case 'used':
+      return 'Gebruikt';
+    case 'released':
+      return 'Vrijgegeven';
+    default:
+      return status;
+  }
+}

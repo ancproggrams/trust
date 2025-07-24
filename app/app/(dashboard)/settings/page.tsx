@@ -10,6 +10,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   User, 
   Mail, 
@@ -25,6 +32,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { Switch } from '@/components/ui/switch';
+import { mockTaxSettings } from '@/lib/mock-data';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -60,6 +68,19 @@ export default function SettingsPage() {
     defaultPaymentTerms: '30',
   });
 
+  // BTW/Belasting Settings
+  const [taxData, setTaxData] = useState({
+    defaultBTWRate: mockTaxSettings.defaultBTWRate.toString(),
+    btwEnabled: mockTaxSettings.btwEnabled,
+    quarterlyBTWPrepaymentsEnabled: mockTaxSettings.quarterlyBTWPrepaymentsEnabled,
+    btwPrepaymentAmount: mockTaxSettings.btwPrepaymentAmount.toString(),
+    taxReservationEnabled: mockTaxSettings.taxReservationEnabled,
+    taxReservationRate: mockTaxSettings.taxReservationRate.toString(),
+    annualTaxThreshold: mockTaxSettings.annualTaxThreshold.toString(),
+    taxOfficeContactEmail: mockTaxSettings.taxOfficeContactEmail,
+    taxFilingMethod: mockTaxSettings.taxFilingMethod,
+  });
+
   const handleSaveProfile = async () => {
     setIsSaving(true);
     
@@ -83,6 +104,17 @@ export default function SettingsPage() {
   };
 
   const handleSaveBusiness = async () => {
+    setIsSaving(true);
+    
+    // Simulate API call
+    setTimeout(() => {
+      setIsSaving(false);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    }, 1000);
+  };
+
+  const handleSaveTax = async () => {
     setIsSaving(true);
     
     // Simulate API call
@@ -285,6 +317,172 @@ export default function SettingsPage() {
                     <>
                       <Save className="mr-2 h-4 w-4" />
                       Bedrijfsgegevens Opslaan
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* BTW/Belasting Settings */}
+            <Card className="border-0 shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <CreditCard className="h-5 w-5" />
+                  <span>BTW & Belasting Instellingen</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* BTW Instellingen */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-medium">BTW Beheer Inschakelen</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Automatische BTW berekening en tracking
+                      </p>
+                    </div>
+                    <Switch
+                      checked={taxData.btwEnabled}
+                      onCheckedChange={(checked) => 
+                        setTaxData({ ...taxData, btwEnabled: checked })
+                      }
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="defaultBTWRate">Standaard BTW Tarief (%)</Label>
+                      <Input
+                        id="defaultBTWRate"
+                        type="number"
+                        value={taxData.defaultBTWRate}
+                        onChange={(e) => setTaxData({ ...taxData, defaultBTWRate: e.target.value })}
+                        placeholder="21"
+                        disabled={!taxData.btwEnabled}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="btwPrepaymentAmount">BTW Vooruitbetaling per Kwartaal (€)</Label>
+                      <Input
+                        id="btwPrepaymentAmount"
+                        type="number"
+                        step="0.01"
+                        value={taxData.btwPrepaymentAmount}
+                        onChange={(e) => setTaxData({ ...taxData, btwPrepaymentAmount: e.target.value })}
+                        placeholder="1500.00"
+                        disabled={!taxData.btwEnabled}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-medium">Kwartaal BTW Vooruitbetalingen</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Automatisch BTW vooruitbetalen per kwartaal
+                      </p>
+                    </div>
+                    <Switch
+                      checked={taxData.quarterlyBTWPrepaymentsEnabled}
+                      onCheckedChange={(checked) => 
+                        setTaxData({ ...taxData, quarterlyBTWPrepaymentsEnabled: checked })
+                      }
+                      disabled={!taxData.btwEnabled}
+                    />
+                  </div>
+                </div>
+
+                <hr className="my-6" />
+
+                {/* Omzetbelasting Instellingen */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-medium">Omzetbelasting Reservering</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Automatisch percentage van omzet reserveren voor jaaraangifte
+                      </p>
+                    </div>
+                    <Switch
+                      checked={taxData.taxReservationEnabled}
+                      onCheckedChange={(checked) => 
+                        setTaxData({ ...taxData, taxReservationEnabled: checked })
+                      }
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="taxReservationRate">Reservering Percentage (%)</Label>
+                      <Input
+                        id="taxReservationRate"
+                        type="number"
+                        value={taxData.taxReservationRate}
+                        onChange={(e) => setTaxData({ ...taxData, taxReservationRate: e.target.value })}
+                        placeholder="25"
+                        disabled={!taxData.taxReservationEnabled}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="annualTaxThreshold">Jaarlijkse Belasting Drempel (€)</Label>
+                      <Input
+                        id="annualTaxThreshold"
+                        type="number"
+                        step="0.01"
+                        value={taxData.annualTaxThreshold}
+                        onChange={(e) => setTaxData({ ...taxData, annualTaxThreshold: e.target.value })}
+                        placeholder="20000.00"
+                        disabled={!taxData.taxReservationEnabled}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <hr className="my-6" />
+
+                {/* Belastingdienst Instellingen */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="taxOfficeEmail">Belastingdienst Contact Email</Label>
+                      <Input
+                        id="taxOfficeEmail"
+                        type="email"
+                        value={taxData.taxOfficeContactEmail}
+                        onChange={(e) => setTaxData({ ...taxData, taxOfficeContactEmail: e.target.value })}
+                        placeholder="contact@belastingdienst.nl"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="taxFilingMethod">Aangifte Methode</Label>
+                      <Select 
+                        value={taxData.taxFilingMethod} 
+                        onValueChange={(value: 'manual' | 'automatic') => 
+                          setTaxData({ ...taxData, taxFilingMethod: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="manual">Handmatig</SelectItem>
+                          <SelectItem value="automatic">Automatisch</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+                
+                <Button onClick={handleSaveTax} disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Opslaan...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      BTW & Belasting Opslaan
                     </>
                   )}
                 </Button>

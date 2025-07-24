@@ -17,14 +17,24 @@ import {
   Calendar, 
   TrendingUp,
   Eye,
-  MoreHorizontal
+  MoreHorizontal,
+  Receipt,
+  PiggyBank,
+  AlertTriangle,
+  Calculator
 } from 'lucide-react';
 import { 
   mockInvoices, 
   mockClients, 
   mockAppointments,
   getRecentInvoices,
-  getUpcomingAppointments 
+  getUpcomingAppointments,
+  getTotalBTWOwed,
+  getTotalBTWPrepaid,
+  getTotalTaxReserved,
+  getCurrentYearRevenue,
+  getEstimatedYearEndTax,
+  mockBTWRecords
 } from '@/lib/mock-data';
 import { 
   formatCurrency, 
@@ -49,6 +59,18 @@ export default function DashboardPage() {
     appointment => appointment.status === 'scheduled' && appointment.date > new Date()
   ).length;
 
+  // BTW/Belasting stats
+  const totalBTWOwed = getTotalBTWOwed();
+  const totalBTWPrepaid = getTotalBTWPrepaid();
+  const totalTaxReserved = getTotalTaxReserved();
+  const currentYearRevenue = getCurrentYearRevenue();
+  const estimatedYearEndTax = getEstimatedYearEndTax();
+  
+  // Find next BTW deadline
+  const nextBTWPayment = mockBTWRecords
+    .filter(record => record.status === 'pending' || record.status === 'reserved')
+    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())[0];
+
   const recentInvoices = getRecentInvoices(5);
   const upcomingAppointments = getUpcomingAppointments(5);
 
@@ -60,8 +82,8 @@ export default function DashboardPage() {
       />
       
       <div className="px-6">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Stats Grid - Algemeen */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
           <StatsCard
             title="Totale Omzet"
             value={formatCurrency(totalRevenue)}
@@ -90,6 +112,36 @@ export default function DashboardPage() {
           />
         </div>
 
+        {/* BTW/Belasting Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <StatsCard
+            title="BTW Openstaand"
+            value={formatCurrency(totalBTWOwed)}
+            description={nextBTWPayment ? `Vervalt ${formatDate(nextBTWPayment.dueDate)}` : "Geen openstaande BTW"}
+            icon={Receipt}
+            trend={totalBTWOwed > 0 ? { value: 0, isPositive: false } : undefined}
+          />
+          <StatsCard
+            title="BTW Vooruitbetaald"
+            value={formatCurrency(totalBTWPrepaid)}
+            description="Dit kwartaal"
+            icon={PiggyBank}
+          />
+          <StatsCard
+            title="Belasting Gereserveerd"
+            value={formatCurrency(totalTaxReserved)}
+            description="Voor jaaraangifte"
+            icon={Calculator}
+            trend={{ value: 15.3, isPositive: true }}
+          />
+          <StatsCard
+            title="Geschatte Jaarbelasting"
+            value={formatCurrency(estimatedYearEndTax)}
+            description={`Op ${formatCurrency(currentYearRevenue)} omzet`}
+            icon={AlertTriangle}
+          />
+        </div>
+
         {/* Tables Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Recent Invoices */}
@@ -112,6 +164,7 @@ export default function DashboardPage() {
                         <TableHead>Factuur</TableHead>
                         <TableHead>Klant</TableHead>
                         <TableHead>Bedrag</TableHead>
+                        <TableHead>BTW</TableHead>
                         <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -124,8 +177,19 @@ export default function DashboardPage() {
                           <TableCell className="text-sm text-muted-foreground">
                             {invoice.clientName}
                           </TableCell>
-                          <TableCell className="font-medium">
-                            {formatCurrency(invoice.amount)}
+                          <TableCell>
+                            <div className="font-medium">
+                              {formatCurrency(invoice.totalAmount)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatCurrency(invoice.amount)} excl. BTW
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {formatCurrency(invoice.btwAmount)}
+                            <div className="text-xs text-muted-foreground">
+                              {invoice.btwRate}%
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Badge
