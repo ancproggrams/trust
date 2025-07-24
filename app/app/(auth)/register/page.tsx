@@ -17,7 +17,8 @@ import {
   CreditCard, CheckCircle, ArrowLeft, ArrowRight 
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
-import { OnboardingFormData, BusinessType } from '@/lib/types';
+import { OnboardingFormData, BusinessType, KvKValidationResult, KvKCompanyData } from '@/lib/types';
+import { KvKValidationField } from '@/components/forms/kvk-validation-field';
 import { isValidEmail, isValidIBAN } from '@/lib/utils';
 
 const STEPS = [
@@ -57,6 +58,28 @@ export default function RegisterPage() {
 
   const updateFormData = (field: keyof OnboardingFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // KvK validation handlers
+  const handleKvKValidationResult = (result: KvKValidationResult | null) => {
+    setFormData(prev => ({
+      ...prev,
+      kvkValidationResult: result || undefined
+    }));
+  };
+
+  const handleCompanyDataSelect = (companyData: KvKCompanyData) => {
+    // Auto-fill form fields with validated company data
+    setFormData(prev => ({
+      ...prev,
+      companyName: companyData.name || prev.companyName,
+      address: companyData.address?.street && companyData.address?.houseNumber 
+        ? `${companyData.address.street} ${companyData.address.houseNumber}` 
+        : prev.address,
+      postalCode: companyData.address?.postalCode || prev.postalCode,
+      city: companyData.address?.city || prev.city,
+      country: companyData.address?.country || prev.country,
+    }));
   };
 
   const validateStep = (step: number): boolean => {
@@ -250,16 +273,17 @@ export default function RegisterPage() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="kvkNumber">KvK nummer</Label>
-                <Input
-                  id="kvkNumber"
-                  placeholder="12345678"
-                  value={formData.kvkNumber}
-                  onChange={(e) => updateFormData('kvkNumber', e.target.value)}
-                  className="h-12"
-                />
-              </div>
+              <KvKValidationField
+                value={formData.kvkNumber || ''}
+                onChange={(value) => updateFormData('kvkNumber', value)}
+                onValidationResult={handleKvKValidationResult}
+                onCompanyDataSelect={handleCompanyDataSelect}
+                label="KvK nummer"
+                placeholder="12345678"
+                showValidationDetails={true}
+                autoValidate={true}
+                className="[&_input]:h-12"
+              />
 
               <div className="space-y-2">
                 <Label htmlFor="vatNumber">BTW nummer</Label>

@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { KvKValidationField } from '@/components/forms/kvk-validation-field';
 import {
   Table,
   TableBody,
@@ -46,7 +47,9 @@ import {
   Payment, 
   ValidationStatus, 
   BusinessType, 
-  ValidationMethod 
+  ValidationMethod,
+  KvKValidationResult,
+  KvKCompanyData
 } from '@/lib/types';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
@@ -65,6 +68,7 @@ interface NewCreditorForm {
   iban: string;
   bankName: string;
   accountHolder: string;
+  kvkValidationResult?: KvKValidationResult;
 }
 
 const initialFormData: NewCreditorForm = {
@@ -123,6 +127,28 @@ export default function CreditorsPage() {
     setIsValidationDialogOpen(false);
     setSelectedCreditor(null);
     // Show success message
+  };
+
+  // KvK validation handlers
+  const handleKvKValidationResult = (result: KvKValidationResult | null) => {
+    setFormData(prev => ({
+      ...prev,
+      kvkValidationResult: result || undefined
+    }));
+  };
+
+  const handleCompanyDataSelect = (companyData: KvKCompanyData) => {
+    // Auto-fill form fields with validated company data
+    setFormData(prev => ({
+      ...prev,
+      companyName: companyData.name || prev.companyName,
+      address: companyData.address?.street && companyData.address?.houseNumber 
+        ? `${companyData.address.street} ${companyData.address.houseNumber}` 
+        : prev.address,
+      postalCode: companyData.address?.postalCode || prev.postalCode,
+      city: companyData.address?.city || prev.city,
+      country: companyData.address?.country || prev.country,
+    }));
   };
 
   const getStatusBadge = (status: ValidationStatus) => {
@@ -323,15 +349,16 @@ export default function CreditorsPage() {
                             />
                           </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="kvkNumber">KvK nummer</Label>
-                            <Input
-                              id="kvkNumber"
-                              placeholder="12345678"
-                              value={formData.kvkNumber}
-                              onChange={(e) => updateFormData('kvkNumber', e.target.value)}
-                            />
-                          </div>
+                          <KvKValidationField
+                            value={formData.kvkNumber}
+                            onChange={(value) => updateFormData('kvkNumber', value)}
+                            onValidationResult={handleKvKValidationResult}
+                            onCompanyDataSelect={handleCompanyDataSelect}
+                            label="KvK nummer"
+                            placeholder="12345678"
+                            showValidationDetails={true}
+                            autoValidate={true}
+                          />
 
                           <div className="space-y-2">
                             <Label htmlFor="vatNumber">BTW nummer</Label>

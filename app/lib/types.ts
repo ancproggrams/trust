@@ -202,6 +202,9 @@ export interface OnboardingFormData {
   // Terms acceptance
   acceptedTerms: boolean;
   acceptedPrivacy: boolean;
+  
+  // KvK validation result
+  kvkValidationResult?: KvKValidationResult;
 }
 
 // Creditor Management Types
@@ -365,3 +368,65 @@ export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 
 export type DemoFeature = 'INVOICES' | 'CLIENTS' | 'APPOINTMENTS' | 'DOCUMENTS' | 'CREDITORS' | 'PAYMENTS' | 'BTW' | 'TAX';
 export type NotificationType = 'VALIDATION_REQUIRED' | 'PAYMENT_DUE' | 'CREDITOR_VALIDATED' | 'SYSTEM_ALERT' | 'BTW_DEADLINE';
 export type NotificationPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+// KvK API Integration Types
+export interface KvKCompanyData {
+  kvkNumber: string;
+  name: string;
+  tradeName?: string;
+  legalForm?: string;
+  businessStatus?: string;
+  address?: {
+    street?: string;
+    houseNumber?: string;
+    postalCode?: string;
+    city?: string;
+    country?: string;
+  };
+  website?: string;
+  sbiCodes?: Array<{
+    code: string;
+    description: string;
+    indication: string;
+  }>;
+  establishmentDate?: string;
+  employeeCount?: string;
+}
+
+export interface KvKValidationResult {
+  isValid: boolean;
+  companyData?: KvKCompanyData;
+  error?: string;
+  source: 'openkvk' | 'cache' | 'fallback';
+  validatedAt: Date;
+}
+
+export interface KvKValidationState {
+  isValidating: boolean;
+  hasValidated: boolean;
+  result?: KvKValidationResult;
+  error?: string;
+}
+
+// Enhanced Creditor form with KvK validation
+export interface CreditorFormData {
+  // Basic information
+  name: string;
+  email?: string;
+  phone?: string;
+  // Business details with KvK validation
+  companyName?: string;
+  kvkNumber?: string;
+  vatNumber?: string;
+  // Contact details
+  address?: string;
+  postalCode?: string;
+  city?: string;
+  country: string;
+  // Banking information
+  iban?: string;
+  bankName?: string;
+  accountHolder?: string;
+  // KvK validation state
+  kvkValidation?: KvKValidationState;
+}
