@@ -1,4 +1,6 @@
 
+'use client';
+
 import { Header } from '@/components/dashboard/header';
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

@@ -1,12 +1,37 @@
 
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, PlayCircle } from 'lucide-react';
+import { ArrowRight, PlayCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useAuth } from '@/contexts/auth-context';
 
 export function HeroSection() {
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
+  const { demoLogin } = useAuth();
+  const router = useRouter();
+
+  const handleDemoClick = async () => {
+    setIsDemoLoading(true);
+    try {
+      const success = await demoLogin();
+      if (success) {
+        router.push('/dashboard');
+      } else {
+        // Fallback: redirect to login page
+        router.push('/login');
+      }
+    } catch (error) {
+      // Fallback: redirect to login page
+      router.push('/login');
+    } finally {
+      setIsDemoLoading(false);
+    }
+  };
+
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-white to-gray-50/30">
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
@@ -35,9 +60,24 @@ export function HeroSection() {
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </Link>
                 </Button>
-                <Button variant="secondary" size="lg" className="group">
-                  <PlayCircle className="mr-2 h-4 w-4" />
-                  Bekijk demo
+                <Button 
+                  variant="secondary" 
+                  size="lg" 
+                  className="group"
+                  onClick={handleDemoClick}
+                  disabled={isDemoLoading}
+                >
+                  {isDemoLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Demo wordt geladen...
+                    </>
+                  ) : (
+                    <>
+                      <PlayCircle className="mr-2 h-4 w-4" />
+                      Bekijk demo
+                    </>
+                  )}
                 </Button>
               </div>
               
