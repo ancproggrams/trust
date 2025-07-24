@@ -1,0 +1,106 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    /* Apple-inspired color palette */
+    --background: 0 0% 100%;           /* Pure white */
+    --foreground: 0 0% 9%;             /* Near black */
+    --muted: 0 0% 97.3%;               /* Very light grey */
+    --muted-foreground: 0 0% 45.1%;    /* Grey */
+    --primary: 217.2 91.2% 59.8%;      /* Vivid blue */
+    --primary-foreground: 0 0% 98%;    /* White on accent */
+    --card: 0 0% 100%;                 /* White cards */
+    --card-foreground: 0 0% 9%;        /* Card text */
+    --border: 0 0% 90%;                /* Subtle grey borders */
+    --input: 0 0% 90%;                 /* Input borders */
+    --ring: 217.2 91.2% 59.8%;        /* Focus ring - same as primary */
+    --secondary: 0 0% 97.3%;           /* Light grey */
+    --secondary-foreground: 0 0% 9%;   /* Secondary text */
+    --accent: 0 0% 97.3%;              /* Accent background */
+    --accent-foreground: 0 0% 9%;      /* Accent text */
+    --destructive: 0 84.2% 60.2%;      /* Red for destructive actions */
+    --destructive-foreground: 0 0% 98%; /* White on destructive */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+  
+  /* Apple-style typography hierarchy */
+  .page-title {
+    @apply font-bold text-5xl tracking-tighter;
+  }
+  
+  .section-title {
+    @apply font-bold text-3xl;
+  }
+  
+  .card-title {
+    @apply font-semibold text-xl;
+  }
+  
+  .body-text {
+    @apply text-base text-foreground/80;
+  }
+  
+  .label-text {
+    @apply text-sm text-muted-foreground;
+  }
+}
+
+@layer components {
+  /* Custom scrollbar for Apple feel */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Apple-style animations */
+  .animate-scale-in {
+    animation: scale-in 0.2s ease-out;
+  }
+  
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  /* Number counting animation */
+  .animate-count-up {
+    animation: count-up 1s ease-out;
+  }
+  
+  @keyframes count-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
