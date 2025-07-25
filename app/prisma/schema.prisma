@@ -42,22 +42,22 @@ model UserProfile {
   userId      String   @unique
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // Business details (KvK registration)
-  companyName       String?
-  kvkNumber        String?   @unique
-  vatNumber        String?   @unique
+  // Business details (KvK registration) - MANDATORY
+  companyName       String
+  kvkNumber        String   @unique
+  vatNumber        String   @unique
   
-  // Contact information
-  phone            String?
-  address          String?
-  postalCode       String?
-  city            String?
+  // Contact information - MANDATORY
+  phone            String
+  address          String
+  postalCode       String
+  city            String
   country          String   @default("Netherlands")
   
-  // Banking details
-  iban            String?
-  bankName        String?
-  accountHolder   String?
+  // Banking details - MANDATORY
+  iban            String   @unique
+  bankName        String
+  accountHolder   String
   
   // Validation status
   validationStatus ValidationStatus @default(PENDING)
@@ -72,6 +72,17 @@ model UserProfile {
   onboardingStep   OnboardingStep @default(BASIC_INFO)
   onboardingCompletedAt DateTime?
   
+  // Audit fields
+  createdBy        String?
+  updatedBy        String?
+  version          Int      @default(1)
+  immudbTxId       String?
+  
+  // Compliance fields
+  dataRetentionUntil DateTime?
+  complianceStatus   ComplianceStatus @default(PENDING)
+  lastComplianceCheck DateTime?
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -84,26 +95,26 @@ model Creditor {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // Basic information
+  // Basic information - MANDATORY
   name        String
-  email       String?
-  phone       String?
+  email       String
+  phone       String
   
-  // Business details
-  companyName String?
-  kvkNumber   String?
-  vatNumber   String?
+  // Business details - MANDATORY
+  companyName String
+  kvkNumber   String   @unique
+  vatNumber   String   @unique
   
-  // Contact details
-  address     String?
-  postalCode  String?
-  city        String?
+  // Contact details - MANDATORY
+  address     String
+  postalCode  String
+  city        String
   country     String   @default("Netherlands")
   
-  // Banking information
-  iban        String?
-  bankName    String?
-  accountHolder String?
+  // Banking information - MANDATORY
+  iban        String   @unique
+  bankName    String
+  accountHolder String
   
   // Validation
   validationStatus ValidationStatus @default(PENDING)
@@ -113,6 +124,17 @@ model Creditor {
   
   // Settings
   isActive    Boolean @default(true)
+  
+  // Audit fields
+  createdBy        String?
+  updatedBy        String?
+  version          Int      @default(1)
+  immudbTxId       String?
+  
+  // Compliance fields
+  dataRetentionUntil DateTime?
+  complianceStatus   ComplianceStatus @default(PENDING)
+  lastComplianceCheck DateTime?
   
   // Relations
   validations CreditorValidation[]
@@ -196,10 +218,69 @@ model AuditLog {
   // Context
   ipAddress String?
   userAgent String?
+  sessionId String?
+  
+  // ImmuDB integration
+  immudbTxId     String?
+  immudbVerified Boolean @default(false)
+  immudbHash     String?
+  
+  // Compliance & retention
+  retentionUntil DateTime?
+  complianceLevel ComplianceLevel @default(STANDARD)
   
   createdAt DateTime @default(now())
   
   @@map("audit_logs")
+}
+
+// ImmuDB transaction tracking
+model ImmuDBTransaction {
+  id           String   @id @default(cuid())
+  txId         String   @unique
+  timestamp    DateTime
+  verified     Boolean  @default(false)
+  hash         String
+  
+  // Related audit logs
+  auditLogIds  String[]
+  
+  // Verification details
+  verifiedAt   DateTime?
+  verificationHash String?
+  
+  createdAt DateTime @default(now())
+  
+  @@map("immudb_transactions")
+}
+
+// Compliance audit trail
+model ComplianceAudit {
+  id               String   @id @default(cuid())
+  entity           String   // Model name
+  entityId         String   // Entity ID
+  
+  checkType        ComplianceCheckType
+  status           ComplianceStatus
+  
+  // Check details
+  requiredFields   String[] // Required field names
+  missingFields    String[] // Missing field names
+  validationErrors Json?
+  
+  // Resolution
+  resolvedAt       DateTime?
+  resolvedBy       String?
+  resolution       String?
+  
+  // Schedule info
+  scheduledAt      DateTime?
+  nextCheckAt      DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("compliance_audits")
 }
 
 // Core business entities (existing)
@@ -215,6 +296,17 @@ model Client {
   address      String?
   
   totalInvoiced Decimal @db.Decimal(10,2) @default(0)
+  
+  // Audit fields
+  createdBy        String?
+  updatedBy        String?
+  version          Int      @default(1)
+  immudbTxId       String?
+  
+  // Compliance fields
+  dataRetentionUntil DateTime?
+  complianceStatus   ComplianceStatus @default(PENDING)
+  lastComplianceCheck DateTime?
   
   // Relations
   invoices     Invoice[]
@@ -245,6 +337,17 @@ model Invoice {
   status        InvoiceStatus @default(DRAFT)
   dueDate       DateTime
   description   String
+  
+  // Audit fields
+  createdBy        String?
+  updatedBy        String?
+  version          Int      @default(1)
+  immudbTxId       String?
+  
+  // Compliance fields
+  dataRetentionUntil DateTime?
+  complianceStatus   ComplianceStatus @default(PENDING)
+  lastComplianceCheck DateTime?
   
   // Relations
   items         InvoiceItem[]
@@ -455,4 +558,30 @@ enum TaxReservationStatus {
   ACTIVE
   USED
   RELEASED
+}
+
+// New compliance and audit enums
+enum ComplianceStatus {
+  PENDING
+  COMPLIANT
+  NON_COMPLIANT
+  UNDER_REVIEW
+  REQUIRES_ACTION
+  EXPIRED
+}
+
+enum ComplianceLevel {
+  STANDARD
+  ENHANCED
+  CRITICAL
+  REGULATORY
+}
+
+enum ComplianceCheckType {
+  MANDATORY_FIELDS
+  DATA_VALIDATION
+  BUSINESS_RULES
+  REGULATORY
+  RETENTION_POLICY
+  PERIODIC_REVIEW
 }

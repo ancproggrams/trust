@@ -56,6 +56,8 @@ import {
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
+import { AuditTrailWidget } from '@/components/dashboard/audit-trail-widget';
+import { ComplianceWidget } from '@/components/dashboard/compliance-widget';
 
 export default function DashboardPage() {
   const { isDemo, user } = useAuth();
@@ -182,7 +184,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Tables Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Recent Invoices */}
           <Card className="border-0 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
@@ -308,6 +310,19 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Enhanced Audit & Compliance Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Audit Trail Widget */}
+          <div>
+            <AuditTrailWidget limit={8} showFilters={false} />
+          </div>
+          
+          {/* Compliance Widget */}
+          <div>
+            <ComplianceWidget showDetails={true} />
+          </div>
         </div>
       </div>
     </div>

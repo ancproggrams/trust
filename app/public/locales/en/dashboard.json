@@ -1,0 +1,37 @@
+
+{
+  "title": "Dashboard",
+  "welcome": "Welcome back",
+  "overview": "Overview",
+  "stats": {
+    "totalInvoices": "Total invoices",
+    "totalRevenue": "Total revenue",
+    "pendingInvoices": "Pending invoices",
+    "upcomingAppointments": "Upcoming appointments",
+    "totalClients": "Total clients",
+    "completedAppointments": "Completed appointments",
+    "totalCreditors": "Total creditors",
+    "pendingValidations": "Pending validations",
+    "pendingPayments": "Pending payments",
+    "totalBTWOwed": "Total VAT owed",
+    "totalBTWPrepaid": "Total VAT prepaid",
+    "totalTaxReserved": "Total tax reserved",
+    "complianceRate": "Compliance rate"
+  },
+  "sections": {
+    "recentInvoices": "Recent invoices",
+    "upcomingAppointments": "Upcoming appointments",
+    "recentClients": "New clients",
+    "pendingTasks": "Pending tasks",
+    "complianceOverview": "Compliance overview",
+    "auditActivity": "Audit activity"
+  },
+  "quickActions": {
+    "title": "Quick actions",
+    "newInvoice": "New invoice",
+    "newClient": "New client",
+    "newAppointment": "New appointment",
+    "viewCreditors": "View creditors",
+    "runCompliance": "Compliance check"
+  }
+}

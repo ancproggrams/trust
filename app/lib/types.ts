@@ -430,3 +430,20 @@ export interface CreditorFormData {
   // KvK validation state
   kvkValidation?: KvKValidationState;
 }
+
+// Re-export audit types for convenience
+export type {
+  AuditEvent,
+  AuditFilter,
+  ComplianceCheck,
+  ComplianceReport,
+  ComplianceIssue,
+  AuditConfiguration,
+  ValidationRule,
+  AuditMiddleware,
+  ImmuDBRecord,
+  ImmuDBVerification,
+  ComplianceDashboard,
+  RetentionPolicy,
+  RetentionStatus
+} from './types/audit';

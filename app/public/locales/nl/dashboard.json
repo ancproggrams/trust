@@ -1,0 +1,37 @@
+
+{
+  "title": "Dashboard",
+  "welcome": "Welkom terug",
+  "overview": "Overzicht",
+  "stats": {
+    "totalInvoices": "Totaal facturen",
+    "totalRevenue": "Totale omzet",
+    "pendingInvoices": "Openstaande facturen",
+    "upcomingAppointments": "Komende afspraken",
+    "totalClients": "Totaal klanten",
+    "completedAppointments": "Voltooide afspraken",
+    "totalCreditors": "Totaal crediteuren",
+    "pendingValidations": "Openstaande validaties",
+    "pendingPayments": "Openstaande betalingen",
+    "totalBTWOwed": "Totaal BTW verschuldigd",
+    "totalBTWPrepaid": "Totaal BTW vooruitbetaald",
+    "totalTaxReserved": "Totaal belasting gereserveerd",
+    "complianceRate": "Compliance percentage"
+  },
+  "sections": {
+    "recentInvoices": "Recente facturen",
+    "upcomingAppointments": "Komende afspraken",
+    "recentClients": "Nieuwe klanten",
+    "pendingTasks": "Openstaande taken",
+    "complianceOverview": "Compliance overzicht",
+    "auditActivity": "Audit activiteit"
+  },
+  "quickActions": {
+    "title": "Snelle acties",
+    "newInvoice": "Nieuwe factuur",
+    "newClient": "Nieuwe klant",
+    "newAppointment": "Nieuwe afspraak",
+    "viewCreditors": "Bekijk crediteuren",
+    "runCompliance": "Compliance check"
+  }
+}
