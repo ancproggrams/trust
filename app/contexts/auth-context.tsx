@@ -11,14 +11,14 @@ const AuthContext = createContext<ExtendedAuthContextType | undefined>(undefined
 const mockUser: User = {
   id: '1',
   name: 'Jan Janssen',
-  email: 'jan@zzptrust.nl',
+  email: 'jan@trust.io',
   createdAt: new Date(),
 };
 
 const demoUser: User = {
   id: 'demo',
   name: 'Demo Gebruiker',
-  email: 'demo@zzptrust.nl',
+  email: 'demo@trust.io',
   createdAt: new Date(),
 };
 
@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check voor opgeslagen authenticatie status
-    const savedAuth = localStorage.getItem('zzp_trust_auth');
+    const savedAuth = localStorage.getItem('trust_io_auth');
     if (savedAuth) {
       const authData = JSON.parse(savedAuth);
       setUser(authData.user);
@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userData = {
         ...mockUser,
         email: email,
-        name: email === 'jan@zzptrust.nl' ? 'Jan Janssen' : email.split('@')[0]
+        name: email === 'jan@trust.io' ? 'Jan Janssen' : email.split('@')[0]
       };
       
       // Find matching profile
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(userProfile || null);
       setIsDemo(false);
       
-      localStorage.setItem('zzp_trust_auth', JSON.stringify({ 
+      localStorage.setItem('trust_io_auth', JSON.stringify({ 
         user: userData, 
         profile: userProfile,
         isDemo: false 
@@ -79,17 +79,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const demoProfile: UserProfile = {
         id: 'demo-profile',
         userId: 'demo',
-        companyName: 'Demo Bedrijf B.V.',
-        kvkNumber: '12345678',
-        vatNumber: 'NL123456789B01',
-        phone: '+31 6 12345678',
-        address: 'Demostraat 123',
-        postalCode: '1000AB',
+        companyName: 'Demo ZZP B.V.',
+        kvkNumber: '87654321',
+        vatNumber: 'NL987654321B01',
+        phone: '+31 6 87654321',
+        address: 'Trust.io-laan 456',
+        postalCode: '1000CD',
         city: 'Amsterdam',
         country: 'Netherlands',
-        iban: 'NL91DEMO0417164300',
-        bankName: 'Demo Bank',
-        accountHolder: 'Demo Bedrijf B.V.',
+        iban: 'NL91TRUST0417164300',
+        bankName: 'Trust.io Bank',
+        accountHolder: 'Demo ZZP B.V.',
         validationStatus: 'VALIDATED',
         validatedAt: new Date(),
         validatedBy: 'system',
@@ -107,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Reset demo data
       resetDemoData();
       
-      localStorage.setItem('zzp_trust_auth', JSON.stringify({ 
+      localStorage.setItem('trust_io_auth', JSON.stringify({ 
         user: demoUser, 
         profile: demoProfile,
         isDemo: true,
@@ -172,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(userProfile);
       setIsDemo(data.isDemo);
       
-      localStorage.setItem('zzp_trust_auth', JSON.stringify({ 
+      localStorage.setItem('trust_io_auth', JSON.stringify({ 
         user: userData, 
         profile: userProfile,
         isDemo: data.isDemo 
@@ -200,7 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       setProfile(updatedProfile);
       
-      localStorage.setItem('zzp_trust_auth', JSON.stringify({ 
+      localStorage.setItem('trust_io_auth', JSON.stringify({ 
         user, 
         profile: updatedProfile,
         isDemo 
@@ -218,7 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setProfile(null);
     setIsDemo(false);
-    localStorage.removeItem('zzp_trust_auth');
+    localStorage.removeItem('trust_io_auth');
   };
 
   const value: ExtendedAuthContextType = {

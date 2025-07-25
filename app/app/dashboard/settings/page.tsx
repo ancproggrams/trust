@@ -3,165 +3,127 @@
 
 import { useState } from 'react';
 import { Header } from '@/components/dashboard/header';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { 
   User, 
-  Mail, 
-  Phone, 
-  Building2, 
-  MapPin, 
-  Settings as SettingsIcon,
-  Bell,
-  Shield,
-  CreditCard,
+  Building, 
+  CreditCard, 
+  Bell, 
+  Shield, 
+  Palette,
+  Globe,
   Save,
-  Check
+  AlertTriangle
 } from 'lucide-react';
-import { useAuth } from '@/contexts/auth-context';
-import { Switch } from '@/components/ui/switch';
-import { mockTaxSettings } from '@/lib/mock-data';
+import { useTheme } from '@/contexts/theme-context';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { LanguageSwitcher } from '@/components/ui/language-switcher';
 
 export default function SettingsPage() {
-  const { user } = useAuth();
-  const [isSaving, setIsSaving] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const { theme, effectiveTheme } = useTheme();
   
-  // Profile Settings
-  const [profileData, setProfileData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    phone: '',
-    company: '',
-    address: '',
-    bio: '',
+  // Profile settings state
+  const [profile, setProfile] = useState({
+    name: 'John Doe',
+    email: 'john@example.com',
+    phone: '+31 6 12345678',
+    companyName: 'Doe Consulting',
+    kvkNumber: '12345678',
+    vatNumber: 'NL123456789B01',
+    address: 'Hoofdstraat 123',
+    postalCode: '1234 AB',
+    city: 'Amsterdam',
+    iban: 'NL91 ABNA 0417 164300'
   });
 
-  // Notification Settings
+  // Notification settings state
   const [notifications, setNotifications] = useState({
     emailInvoices: true,
-    emailAppointments: true,
-    emailDocuments: true,
-    pushNotifications: false,
-    weeklyReport: true,
+    emailPayments: true,
+    emailValidations: true,
+    emailCompliance: false,
+    pushNotifications: true,
+    weeklyReports: true,
+    monthlyReports: false
   });
 
-  // Business Settings
-  const [businessData, setBusinessData] = useState({
-    companyName: '',
-    vatNumber: '',
-    chamberOfCommerce: '',
-    bankAccount: '',
-    invoicePrefix: 'INV',
-    defaultPaymentTerms: '30',
+  // Security settings state
+  const [security, setSecurity] = useState({
+    twoFactorEnabled: false,
+    sessionTimeout: 30,
+    loginAlerts: true,
+    apiAccess: false
   });
 
-  // BTW/Belasting Settings
-  const [taxData, setTaxData] = useState({
-    defaultBTWRate: mockTaxSettings.defaultBTWRate.toString(),
-    btwEnabled: mockTaxSettings.btwEnabled,
-    quarterlyBTWPrepaymentsEnabled: mockTaxSettings.quarterlyBTWPrepaymentsEnabled,
-    btwPrepaymentAmount: mockTaxSettings.btwPrepaymentAmount.toString(),
-    taxReservationEnabled: mockTaxSettings.taxReservationEnabled,
-    taxReservationRate: mockTaxSettings.taxReservationRate.toString(),
-    annualTaxThreshold: mockTaxSettings.annualTaxThreshold.toString(),
-    taxOfficeContactEmail: mockTaxSettings.taxOfficeContactEmail,
-    taxFilingMethod: mockTaxSettings.taxFilingMethod,
-  });
-
-  const handleSaveProfile = async () => {
-    setIsSaving(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsSaving(false);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
-    }, 1000);
+  const handleSaveProfile = () => {
+    // TODO: Implement profile save
+    console.log('Saving profile:', profile);
   };
 
-  const handleSaveNotifications = async () => {
-    setIsSaving(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsSaving(false);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
-    }, 1000);
+  const handleSaveNotifications = () => {
+    // TODO: Implement notification settings save
+    console.log('Saving notifications:', notifications);
   };
 
-  const handleSaveBusiness = async () => {
-    setIsSaving(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsSaving(false);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
-    }, 1000);
-  };
-
-  const handleSaveTax = async () => {
-    setIsSaving(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsSaving(false);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
-    }, 1000);
+  const handleSaveSecurity = () => {
+    // TODO: Implement security settings save
+    console.log('Saving security:', security);
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <Header 
         title="Instellingen" 
-        description="Beheer je account en applicatie voorkeuren"
+        description="Beheer je profiel, voorkeuren en beveiligingsinstellingen"
       />
       
-      <div className="px-6">
-        {/* Success Alert */}
-        {showSuccess && (
-          <Alert className="mb-6 border-green-200 bg-green-50">
-            <Check className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800">
-              Je instellingen zijn succesvol opgeslagen.
-            </AlertDescription>
-          </Alert>
-        )}
+      <div className="px-4 sm:px-6 lg:px-8">
+        <Tabs defaultValue="profile" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto lg:grid-cols-4">
+            <TabsTrigger value="profile" className="flex items-center space-x-2">
+              <User className="h-4 w-4" />
+              <span className="hidden sm:inline">Profiel</span>
+            </TabsTrigger>
+            <TabsTrigger value="appearance" className="flex items-center space-x-2">
+              <Palette className="h-4 w-4" />
+              <span className="hidden sm:inline">Uiterlijk</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center space-x-2">
+              <Bell className="h-4 w-4" />
+              <span className="hidden sm:inline">Meldingen</span>
+            </TabsTrigger>
+            <TabsTrigger value="security" className="flex items-center space-x-2">
+              <Shield className="h-4 w-4" />
+              <span className="hidden sm:inline">Beveiliging</span>
+            </TabsTrigger>
+          </TabsList>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Profile Settings */}
-          <div className="lg:col-span-2 space-y-8">
-            <Card className="border-0 shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <User className="h-5 w-5" />
-                  <span>Profiel Informatie</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <TabsContent value="profile" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Personal Information */}
+              <Card className="dark:bg-gray-800">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <User className="h-5 w-5" />
+                    <span>Persoonlijke Gegevens</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Volledige Naam</Label>
+                    <Label htmlFor="name">Naam</Label>
                     <Input
                       id="name"
-                      value={profileData.name}
-                      onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                      placeholder="Jan Janssen"
+                      value={profile.name}
+                      onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                      className="touch-manipulation"
                     />
                   </div>
                   <div className="space-y-2">
@@ -169,467 +131,340 @@ export default function SettingsPage() {
                     <Input
                       id="email"
                       type="email"
-                      value={profileData.email}
-                      onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                      placeholder="jan@voorbeeld.nl"
+                      value={profile.email}
+                      onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                      className="touch-manipulation"
                     />
                   </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Telefoon</Label>
+                    <Label htmlFor="phone">Telefoonnummer</Label>
                     <Input
                       id="phone"
-                      value={profileData.phone}
-                      onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                      placeholder="+31 6 12345678"
+                      value={profile.phone}
+                      onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                      className="touch-manipulation"
                     />
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Business Information */}
+              <Card className="dark:bg-gray-800">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Building className="h-5 w-5" />
+                    <span>Bedrijfsgegevens</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="company">Bedrijfsnaam</Label>
                     <Input
                       id="company"
-                      value={profileData.company}
-                      onChange={(e) => setProfileData({ ...profileData, company: e.target.value })}
-                      placeholder="Mijn ZZP Bedrijf"
+                      value={profile.companyName}
+                      onChange={(e) => setProfile({ ...profile, companyName: e.target.value })}
+                      className="touch-manipulation"
                     />
                   </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="address">Adres</Label>
-                  <Input
-                    id="address"
-                    value={profileData.address}
-                    onChange={(e) => setProfileData({ ...profileData, address: e.target.value })}
-                    placeholder="Hoofdstraat 123, 1000 AB Amsterdam"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
-                  <Textarea
-                    id="bio"
-                    value={profileData.bio}
-                    onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
-                    placeholder="Vertel iets over jezelf en je werkzaamheden..."
-                    rows={3}
-                  />
-                </div>
-                
-                <Button onClick={handleSaveProfile} disabled={isSaving}>
-                  {isSaving ? (
-                    <>
-                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      Opslaan...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Profiel Opslaan
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
+                  <div className="space-y-2">
+                    <Label htmlFor="kvk">KvK Nummer</Label>
+                    <div className="flex space-x-2">
+                      <Input
+                        id="kvk"
+                        value={profile.kvkNumber}
+                        onChange={(e) => setProfile({ ...profile, kvkNumber: e.target.value })}
+                        className="touch-manipulation"
+                      />
+                      <Badge variant="secondary" className="px-2 py-1">
+                        Geverifieerd
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="vat">BTW Nummer</Label>
+                    <Input
+                      id="vat"
+                      value={profile.vatNumber}
+                      onChange={(e) => setProfile({ ...profile, vatNumber: e.target.value })}
+                      className="touch-manipulation"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
 
-            {/* Business Settings */}
-            <Card className="border-0 shadow-sm">
+              {/* Address Information */}
+              <Card className="dark:bg-gray-800">
+                <CardHeader>
+                  <CardTitle>Adresgegevens</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Adres</Label>
+                    <Input
+                      id="address"
+                      value={profile.address}
+                      onChange={(e) => setProfile({ ...profile, address: e.target.value })}
+                      className="touch-manipulation"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="postal">Postcode</Label>
+                      <Input
+                        id="postal"
+                        value={profile.postalCode}
+                        onChange={(e) => setProfile({ ...profile, postalCode: e.target.value })}
+                        className="touch-manipulation"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="city">Plaats</Label>
+                      <Input
+                        id="city"
+                        value={profile.city}
+                        onChange={(e) => setProfile({ ...profile, city: e.target.value })}
+                        className="touch-manipulation"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Banking Information */}
+              <Card className="dark:bg-gray-800">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <CreditCard className="h-5 w-5" />
+                    <span>Bankgegevens</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="iban">IBAN</Label>
+                    <Input
+                      id="iban"
+                      value={profile.iban}
+                      onChange={(e) => setProfile({ ...profile, iban: e.target.value })}
+                      className="touch-manipulation"
+                    />
+                  </div>
+                  <Button onClick={handleSaveProfile} className="w-full sm:w-auto touch-manipulation">
+                    <Save className="h-4 w-4 mr-2" />
+                    Profiel Opslaan
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Appearance Settings */}
+          <TabsContent value="appearance" className="space-y-6">
+            <Card className="dark:bg-gray-800">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <Building2 className="h-5 w-5" />
-                  <span>Bedrijfsgegevens</span>
+                  <Palette className="h-5 w-5" />
+                  <span>Uiterlijk & Taal</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="companyName">Bedrijfsnaam</Label>
-                    <Input
-                      id="companyName"
-                      value={businessData.companyName}
-                      onChange={(e) => setBusinessData({ ...businessData, companyName: e.target.value })}
-                      placeholder="Mijn ZZP Onderneming"
-                    />
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Kleurenschema</Label>
+                    <div className="text-sm text-muted-foreground">
+                      Kies tussen licht, donker of systeem thema
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="vatNumber">BTW-nummer</Label>
-                    <Input
-                      id="vatNumber"
-                      value={businessData.vatNumber}
-                      onChange={(e) => setBusinessData({ ...businessData, vatNumber: e.target.value })}
-                      placeholder="NL123456789B01"
-                    />
-                  </div>
+                  <ThemeToggle />
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="chamberOfCommerce">KvK-nummer</Label>
-                    <Input
-                      id="chamberOfCommerce"
-                      value={businessData.chamberOfCommerce}
-                      onChange={(e) => setBusinessData({ ...businessData, chamberOfCommerce: e.target.value })}
-                      placeholder="12345678"
-                    />
+                <Separator />
+                
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Taal</Label>
+                    <div className="text-sm text-muted-foreground">
+                      Selecteer je voorkeurstaal
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bankAccount">Bankrekening</Label>
-                    <Input
-                      id="bankAccount"
-                      value={businessData.bankAccount}
-                      onChange={(e) => setBusinessData({ ...businessData, bankAccount: e.target.value })}
-                      placeholder="NL12 ABCD 0123 4567 89"
-                    />
+                  <LanguageSwitcher />
+                </div>
+
+                <Separator />
+
+                <div className="space-y-4">
+                  <Label className="text-base">Huidige Instellingen</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex items-center space-x-2 p-3 bg-muted dark:bg-muted/50 rounded-lg">
+                      <div className="w-3 h-3 rounded-full bg-primary"></div>
+                      <span className="text-sm">Thema: {theme === 'system' ? 'Systeem' : theme === 'dark' ? 'Donker' : 'Licht'}</span>
+                    </div>
+                    <div className="flex items-center space-x-2 p-3 bg-muted dark:bg-muted/50 rounded-lg">
+                      <Globe className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">Taal: Nederlands</span>
+                    </div>
                   </div>
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="invoicePrefix">Factuur Voorvoegsel</Label>
-                    <Input
-                      id="invoicePrefix"
-                      value={businessData.invoicePrefix}
-                      onChange={(e) => setBusinessData({ ...businessData, invoicePrefix: e.target.value })}
-                      placeholder="INV"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="paymentTerms">Standaard Betalingstermijn (dagen)</Label>
-                    <Input
-                      id="paymentTerms"
-                      type="number"
-                      value={businessData.defaultPaymentTerms}
-                      onChange={(e) => setBusinessData({ ...businessData, defaultPaymentTerms: e.target.value })}
-                      placeholder="30"
-                    />
-                  </div>
-                </div>
-                
-                <Button onClick={handleSaveBusiness} disabled={isSaving}>
-                  {isSaving ? (
-                    <>
-                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      Opslaan...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Bedrijfsgegevens Opslaan
-                    </>
-                  )}
-                </Button>
               </CardContent>
             </Card>
+          </TabsContent>
 
-            {/* BTW/Belasting Settings */}
-            <Card className="border-0 shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <CreditCard className="h-5 w-5" />
-                  <span>BTW & Belasting Instellingen</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* BTW Instellingen */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label className="text-sm font-medium">BTW Beheer Inschakelen</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Automatische BTW berekening en tracking
-                      </p>
-                    </div>
-                    <Switch
-                      checked={taxData.btwEnabled}
-                      onCheckedChange={(checked) => 
-                        setTaxData({ ...taxData, btwEnabled: checked })
-                      }
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="defaultBTWRate">Standaard BTW Tarief (%)</Label>
-                      <Input
-                        id="defaultBTWRate"
-                        type="number"
-                        value={taxData.defaultBTWRate}
-                        onChange={(e) => setTaxData({ ...taxData, defaultBTWRate: e.target.value })}
-                        placeholder="21"
-                        disabled={!taxData.btwEnabled}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="btwPrepaymentAmount">BTW Vooruitbetaling per Kwartaal (€)</Label>
-                      <Input
-                        id="btwPrepaymentAmount"
-                        type="number"
-                        step="0.01"
-                        value={taxData.btwPrepaymentAmount}
-                        onChange={(e) => setTaxData({ ...taxData, btwPrepaymentAmount: e.target.value })}
-                        placeholder="1500.00"
-                        disabled={!taxData.btwEnabled}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label className="text-sm font-medium">Kwartaal BTW Vooruitbetalingen</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Automatisch BTW vooruitbetalen per kwartaal
-                      </p>
-                    </div>
-                    <Switch
-                      checked={taxData.quarterlyBTWPrepaymentsEnabled}
-                      onCheckedChange={(checked) => 
-                        setTaxData({ ...taxData, quarterlyBTWPrepaymentsEnabled: checked })
-                      }
-                      disabled={!taxData.btwEnabled}
-                    />
-                  </div>
-                </div>
-
-                <hr className="my-6" />
-
-                {/* Omzetbelasting Instellingen */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label className="text-sm font-medium">Omzetbelasting Reservering</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Automatisch percentage van omzet reserveren voor jaaraangifte
-                      </p>
-                    </div>
-                    <Switch
-                      checked={taxData.taxReservationEnabled}
-                      onCheckedChange={(checked) => 
-                        setTaxData({ ...taxData, taxReservationEnabled: checked })
-                      }
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="taxReservationRate">Reservering Percentage (%)</Label>
-                      <Input
-                        id="taxReservationRate"
-                        type="number"
-                        value={taxData.taxReservationRate}
-                        onChange={(e) => setTaxData({ ...taxData, taxReservationRate: e.target.value })}
-                        placeholder="25"
-                        disabled={!taxData.taxReservationEnabled}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="annualTaxThreshold">Jaarlijkse Belasting Drempel (€)</Label>
-                      <Input
-                        id="annualTaxThreshold"
-                        type="number"
-                        step="0.01"
-                        value={taxData.annualTaxThreshold}
-                        onChange={(e) => setTaxData({ ...taxData, annualTaxThreshold: e.target.value })}
-                        placeholder="20000.00"
-                        disabled={!taxData.taxReservationEnabled}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <hr className="my-6" />
-
-                {/* Belastingdienst Instellingen */}
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="taxOfficeEmail">Belastingdienst Contact Email</Label>
-                      <Input
-                        id="taxOfficeEmail"
-                        type="email"
-                        value={taxData.taxOfficeContactEmail}
-                        onChange={(e) => setTaxData({ ...taxData, taxOfficeContactEmail: e.target.value })}
-                        placeholder="contact@belastingdienst.nl"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="taxFilingMethod">Aangifte Methode</Label>
-                      <Select 
-                        value={taxData.taxFilingMethod} 
-                        onValueChange={(value: 'manual' | 'automatic') => 
-                          setTaxData({ ...taxData, taxFilingMethod: value })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="manual">Handmatig</SelectItem>
-                          <SelectItem value="automatic">Automatisch</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-                
-                <Button onClick={handleSaveTax} disabled={isSaving}>
-                  {isSaving ? (
-                    <>
-                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      Opslaan...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      BTW & Belasting Opslaan
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Side Settings */}
-          <div className="space-y-8">
-            {/* Notification Settings */}
-            <Card className="border-0 shadow-sm">
+          {/* Notification Settings */}
+          <TabsContent value="notifications" className="space-y-6">
+            <Card className="dark:bg-gray-800">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Bell className="h-5 w-5" />
-                  <span>Meldingen</span>
+                  <span>Notificatie Voorkeuren</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label className="text-sm font-medium">Factuur meldingen</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Ontvang updates over facturen
-                      </p>
+                      <Label className="text-base">Factuur Notificaties</Label>
+                      <div className="text-sm text-muted-foreground">
+                        Ontvang e-mails over factuurupdates
+                      </div>
                     </div>
                     <Switch
                       checked={notifications.emailInvoices}
-                      onCheckedChange={(checked) => 
-                        setNotifications({ ...notifications, emailInvoices: checked })
-                      }
+                      onCheckedChange={(checked) => setNotifications({ ...notifications, emailInvoices: checked })}
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label className="text-sm font-medium">Afspraak meldingen</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Herinneringen voor afspraken
-                      </p>
+                      <Label className="text-base">Betaling Notificaties</Label>
+                      <div className="text-sm text-muted-foreground">
+                        Ontvang e-mails over betalingen
+                      </div>
                     </div>
                     <Switch
-                      checked={notifications.emailAppointments}
-                      onCheckedChange={(checked) => 
-                        setNotifications({ ...notifications, emailAppointments: checked })
-                      }
+                      checked={notifications.emailPayments}
+                      onCheckedChange={(checked) => setNotifications({ ...notifications, emailPayments: checked })}
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label className="text-sm font-medium">Document meldingen</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Updates over ondertekeningen
-                      </p>
+                      <Label className="text-base">Validatie Notificaties</Label>
+                      <div className="text-sm text-muted-foreground">
+                        Ontvang e-mails over validatie updates
+                      </div>
                     </div>
                     <Switch
-                      checked={notifications.emailDocuments}
-                      onCheckedChange={(checked) => 
-                        setNotifications({ ...notifications, emailDocuments: checked })
-                      }
+                      checked={notifications.emailValidations}
+                      onCheckedChange={(checked) => setNotifications({ ...notifications, emailValidations: checked })}
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label className="text-sm font-medium">Weekrapport</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Wekelijkse samenvatting
-                      </p>
+                      <Label className="text-base">Compliance Waarschuwingen</Label>
+                      <div className="text-sm text-muted-foreground">
+                        Ontvang belangrijke compliance updates
+                      </div>
                     </div>
                     <Switch
-                      checked={notifications.weeklyReport}
-                      onCheckedChange={(checked) => 
-                        setNotifications({ ...notifications, weeklyReport: checked })
-                      }
+                      checked={notifications.emailCompliance}
+                      onCheckedChange={(checked) => setNotifications({ ...notifications, emailCompliance: checked })}
+                    />
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Push Notificaties</Label>
+                      <div className="text-sm text-muted-foreground">
+                        Browser notificaties voor belangrijke updates
+                      </div>
+                    </div>
+                    <Switch
+                      checked={notifications.pushNotifications}
+                      onCheckedChange={(checked) => setNotifications({ ...notifications, pushNotifications: checked })}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Wekelijkse Rapporten</Label>
+                      <div className="text-sm text-muted-foreground">
+                        Ontvang wekelijks een overzicht
+                      </div>
+                    </div>
+                    <Switch
+                      checked={notifications.weeklyReports}
+                      onCheckedChange={(checked) => setNotifications({ ...notifications, weeklyReports: checked })}
                     />
                   </div>
                 </div>
-                
-                <Button onClick={handleSaveNotifications} disabled={isSaving} className="w-full">
-                  {isSaving ? (
-                    <>
-                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      Opslaan...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Meldingen Opslaan
-                    </>
-                  )}
+
+                <Button onClick={handleSaveNotifications} className="w-full sm:w-auto touch-manipulation">
+                  <Save className="h-4 w-4 mr-2" />
+                  Notificaties Opslaan
                 </Button>
               </CardContent>
             </Card>
+          </TabsContent>
 
-            {/* Security Settings */}
-            <Card className="border-0 shadow-sm">
+          {/* Security Settings */}
+          <TabsContent value="security" className="space-y-6">
+            <Card className="dark:bg-gray-800">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Shield className="h-5 w-5" />
-                  <span>Beveiliging</span>
+                  <span>Beveiligingsinstellingen</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <Button variant="outline" className="w-full justify-start">
-                  <Shield className="mr-2 h-4 w-4" />
-                  Wachtwoord Wijzigen
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <Mail className="mr-2 h-4 w-4" />
-                  Email Bevestigen
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <SettingsIcon className="mr-2 h-4 w-4" />
-                  Twee-factor Authenticatie
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Account Info */}
-            <Card className="border-0 shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <CreditCard className="h-5 w-5" />
-                  <span>Account</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-sm space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Plan:</span>
-                    <span className="font-medium">Gratis Account</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Lidmaatschap sinds:</span>
-                    <span className="font-medium">Juli 2024</span>
+              <CardContent className="space-y-6">
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                  <div className="flex items-center space-x-2">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                      Beveiligingsopties zijn momenteel in ontwikkeling
+                    </span>
                   </div>
                 </div>
-                <Separator />
-                <Button variant="outline" className="w-full">
-                  Upgrade naar Pro
+
+                <div className="space-y-4 opacity-50">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Twee-factor Authenticatie</Label>
+                      <div className="text-sm text-muted-foreground">
+                        Extra beveiliging voor je account
+                      </div>
+                    </div>
+                    <Switch
+                      checked={security.twoFactorEnabled}
+                      onCheckedChange={(checked) => setSecurity({ ...security, twoFactorEnabled: checked })}
+                      disabled
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Inlog Waarschuwingen</Label>
+                      <div className="text-sm text-muted-foreground">
+                        Ontvang waarschuwingen bij nieuwe inlogs
+                      </div>
+                    </div>
+                    <Switch
+                      checked={security.loginAlerts}
+                      onCheckedChange={(checked) => setSecurity({ ...security, loginAlerts: checked })}
+                      disabled
+                    />
+                  </div>
+                </div>
+
+                <Button onClick={handleSaveSecurity} disabled className="w-full sm:w-auto touch-manipulation">
+                  <Save className="h-4 w-4 mr-2" />
+                  Beveiliging Opslaan
                 </Button>
               </CardContent>
             </Card>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

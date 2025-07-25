@@ -85,19 +85,7 @@ export function getInvoiceStatusColor(status: string): string {
   }
 }
 
-// Get appointment status color
-export function getAppointmentStatusColor(status: string): string {
-  switch (status) {
-    case 'scheduled':
-      return 'text-blue-600 bg-blue-50';
-    case 'completed':
-      return 'text-green-600 bg-green-50';
-    case 'cancelled':
-      return 'text-red-600 bg-red-50';
-    default:
-      return 'text-gray-600 bg-gray-50';
-  }
-}
+
 
 // Get document status color
 export function getDocumentStatusColor(status: string): string {
@@ -116,7 +104,7 @@ export function getDocumentStatusColor(status: string): string {
 }
 
 // Translate status to Dutch
-export function translateStatus(status: string, type: 'invoice' | 'appointment' | 'document'): string {
+export function translateStatus(status: string, type: 'invoice' | 'document'): string {
   if (type === 'invoice') {
     switch (status) {
       case 'paid':
@@ -127,19 +115,6 @@ export function translateStatus(status: string, type: 'invoice' | 'appointment' 
         return 'Vervallen';
       case 'draft':
         return 'Concept';
-      default:
-        return status;
-    }
-  }
-  
-  if (type === 'appointment') {
-    switch (status) {
-      case 'scheduled':
-        return 'Gepland';
-      case 'completed':
-        return 'Voltooid';
-      case 'cancelled':
-        return 'Geannuleerd';
       default:
         return status;
     }

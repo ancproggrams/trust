@@ -2,6 +2,7 @@
 import { Header } from '@/components/home/header';
 import { HeroSection } from '@/components/home/hero-section';
 import { FeatureSection } from '@/components/home/feature-section';
+import { DemoPreviewSection } from '@/components/home/demo-preview-section';
 import { PricingSection } from '@/components/home/pricing-section';
 import { HowItWorksSection } from '@/components/home/how-it-works-section';
 import { Footer } from '@/components/home/footer';
@@ -15,6 +16,7 @@ export default function HomePage() {
         <div id="features">
           <FeatureSection />
         </div>
+        <DemoPreviewSection />
         <div id="pricing">
           <PricingSection />
         </div>

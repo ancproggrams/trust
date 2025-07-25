@@ -308,9 +308,9 @@ function getRequiredFields(entity: string, checkType: ComplianceCheckType): stri
 /**
  * Calculate next check date based on check type
  */
-function calculateNextCheckDate(checkType: ComplianceCheckType): Date {
+function calculateNextCheckDate(checkType: any): Date {
   const now = new Date();
-  const intervals: Record<ComplianceCheckType, number> = {
+  const intervals: Record<string, number> = {
     MANDATORY_FIELDS: 7, // days
     DATA_VALIDATION: 14,
     BUSINESS_RULES: 30,

@@ -90,11 +90,11 @@ export const POST = secureRoute(async (request: NextRequest, { params }: { param
     // Prepare client info
     const clientInfo = {
       name: invoice.client.name,
-      company: invoice.client.company,
-      address: invoice.client.address,
-      postalCode: invoice.client.postalCode,
-      city: invoice.client.city,
-      country: invoice.client.country,
+      company: invoice.client.company || undefined,
+      address: invoice.client.address || undefined,
+      postalCode: invoice.client.postalCode || undefined,
+      city: invoice.client.city || undefined,
+      country: invoice.client.country || undefined,
     };
 
     // Generate HTML content
@@ -109,13 +109,32 @@ export const POST = secureRoute(async (request: NextRequest, { params }: { param
         btwAmount: Number(invoice.btwAmount),
         totalAmount: Number(invoice.totalAmount),
         paidAmount: Number(invoice.paidAmount),
-        lineItems: invoice.lineItems.map(item => ({
+        lineItems: (invoice.lineItems.map(item => ({
           ...item,
           quantity: Number(item.quantity),
           rate: Number(item.rate),
           amount: Number(item.amount),
-        })),
-        client: invoice.client,
+          notes: item.notes || undefined,
+          category: item.category || undefined,
+          standardServiceId: item.standardServiceId || undefined,
+          standardService: item.standardService ? {
+            ...item.standardService,
+            category: item.standardService.category || undefined,
+          } : undefined,
+        })) as any),
+        client: ({
+          ...invoice.client,
+          company: invoice.client.company || undefined,
+          address: invoice.client.address || undefined,
+          postalCode: invoice.client.postalCode || undefined,
+          city: invoice.client.city || undefined,
+          country: invoice.client.country || undefined,
+          kvkNumber: invoice.client.kvkNumber || undefined,
+          vatNumber: invoice.client.vatNumber || undefined,
+          adminContactName: invoice.client.adminContactName || undefined,
+          adminContactEmail: invoice.client.adminContactEmail || undefined,
+          adminContactPhone: invoice.client.adminContactPhone || undefined,
+        },
       },
       companyInfo,
       clientInfo,

@@ -196,9 +196,8 @@ export function ApprovalDashboard() {
   };
 
   const filteredApprovals = approvals.filter(approval => {
-    const matchesSearch = approval.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         approval.client?.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         approval.client?.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = approval.clientId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         approval.id?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
@@ -380,22 +379,22 @@ export function ApprovalDashboard() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{approval.client?.name}</div>
-                          <div className="text-sm text-gray-500">{approval.client?.email}</div>
+                          <div className="font-medium">Client ID: {approval.clientId}</div>
+                          <div className="text-sm text-gray-500">Loading client data...</div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{approval.client?.company || '-'}</div>
+                          <div className="font-medium">-</div>
                           <div className="text-sm text-gray-500">
-                            KVK: {approval.client?.kvkNumber || '-'}
+                            KVK: -
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <div>{approval.client?.adminContactName || '-'}</div>
-                          <div className="text-gray-500">{approval.client?.adminContactEmail || '-'}</div>
+                          <div>-</div>
+                          <div className="text-gray-500">-</div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -417,7 +416,7 @@ export function ApprovalDashboard() {
                             onClick={() => handleAction({
                               type: 'view',
                               clientId: approval.clientId,
-                              clientName: approval.client?.name || ''
+                              clientName: approval.clientId
                             })}
                           >
                             <Eye className="w-3 h-3" />
@@ -429,7 +428,7 @@ export function ApprovalDashboard() {
                                 onClick={() => handleAction({
                                   type: 'approve',
                                   clientId: approval.clientId,
-                                  clientName: approval.client?.name || ''
+                                  clientName: approval.clientId
                                 })}
                               >
                                 <Check className="w-3 h-3" />
@@ -440,7 +439,7 @@ export function ApprovalDashboard() {
                                 onClick={() => handleAction({
                                   type: 'reject',
                                   clientId: approval.clientId,
-                                  clientName: approval.client?.name || ''
+                                  clientName: approval.clientId
                                 })}
                               >
                                 <X className="w-3 h-3" />

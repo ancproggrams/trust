@@ -201,6 +201,19 @@ export const POST = secureRoute(async (request: NextRequest, { params }: { param
           updatedBy: session?.user?.id,
           version: { increment: 1 },
         },
+        include: {
+          client: true,
+          lineItems: {
+            include: {
+              standardService: true,
+            },
+          },
+          user: {
+            include: {
+              profile: true,
+            },
+          },
+        },
       });
     }
 

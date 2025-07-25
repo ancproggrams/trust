@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -23,36 +23,41 @@ export function StatsCard({
   description,
   icon: Icon,
   trend,
-  className,
+  className
 }: StatsCardProps) {
   return (
-    <Card className={cn('border-0 shadow-sm hover:shadow-md transition-shadow duration-300', className)}>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between space-y-0 pb-2">
-          <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
-          <Icon className="h-5 w-5 text-muted-foreground" />
+    <Card className={cn(
+      "border-0 shadow-sm hover:shadow-md transition-all duration-200 dark:bg-gray-800 dark:hover:bg-gray-750 card-hover touch-manipulation",
+      className
+    )}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          {title}
+        </CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold text-foreground animate-count-up">
+          {value}
         </div>
-        <div className="space-y-1">
-          <div className="text-2xl font-bold text-gray-900 animate-count-up">
-            {value}
+        {(description || trend) && (
+          <div className="flex items-center justify-between mt-1">
+            {description && (
+              <p className="text-xs text-muted-foreground flex-1">
+                {description}
+              </p>
+            )}
+            {trend && (
+              <div className={cn(
+                "text-xs font-medium flex items-center space-x-1",
+                trend.isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+              )}>
+                <span>{trend.isPositive ? "↗" : "↘"}</span>
+                <span>{Math.abs(trend.value)}%</span>
+              </div>
+            )}
           </div>
-          {description && (
-            <p className="text-xs text-muted-foreground">{description}</p>
-          )}
-          {trend && (
-            <div className="flex items-center space-x-1 text-xs">
-              <span
-                className={cn(
-                  'font-medium',
-                  trend.isPositive ? 'text-green-600' : 'text-red-600'
-                )}
-              >
-                {trend.isPositive ? '+' : ''}{trend.value}%
-              </span>
-              <span className="text-muted-foreground">t.o.v. vorige maand</span>
-            </div>
-          )}
-        </div>
+        )}
       </CardContent>
     </Card>
   );

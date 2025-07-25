@@ -624,10 +624,8 @@ export const getExtendedDashboardStats = () => {
   const baseStats = {
     totalInvoices: mockInvoices.length,
     totalRevenue: mockInvoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0),
-    pendingInvoices: mockInvoices.filter(invoice => invoice.status === 'sent' || invoice.status === 'overdue').length,
-    upcomingAppointments: getUpcomingAppointments().length,
+    pendingInvoices: mockInvoices.filter(invoice => invoice.status === 'SENT' || invoice.paymentStatus === 'PENDING').length,
     totalClients: mockClients.length,
-    completedAppointments: mockAppointments.filter(appointment => appointment.status === 'completed').length,
     totalBTWOwed: getTotalBTWOwed(),
     totalBTWPrepaid: getTotalBTWPrepaid(),
     nextBTWPaymentDue: null,
@@ -650,7 +648,7 @@ export const getDemoData = () => {
   return {
     clients: mockClients,
     invoices: mockInvoices,
-    appointments: mockAppointments,
+
     documents: mockDocuments,
     creditors: mockCreditors,
     payments: mockPayments,

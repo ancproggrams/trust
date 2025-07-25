@@ -60,11 +60,20 @@ export const GET = secureRoute(async (request: NextRequest) => {
       prisma.standardService.count({ where }),
     ]);
 
+    // Transform services to handle null values and type conversion
+    const transformedServices = services.map(service => ({
+      ...service,
+      description: service.description || undefined,
+      category: service.category || undefined,
+      defaultRate: Number(service.defaultRate),
+      lastUsedAt: service.lastUsedAt ? service.lastUsedAt.toISOString() : undefined,
+    }));
+
     // Group by categories
-    const grouped = StandardServicesService.groupByCategory(services);
+    const grouped = StandardServicesService.groupByCategory(transformedServices as any);
     
     // Get statistics
-    const stats = StandardServicesService.calculateStatistics(services);
+    const stats = StandardServicesService.calculateStatistics(transformedServices as any);
 
     return NextResponse.json({
       success: true,

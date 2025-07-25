@@ -1,4 +1,5 @@
 
+
 generator client {
     provider = "prisma-client-js"
     binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
@@ -25,15 +26,18 @@ model User {
   isDemo    Boolean @default(false)
   demoExpiresAt DateTime?
   
-  // Relations
+  // Relations (appointments deprecated - kept for data integrity)
   clients     Client[]
   invoices    Invoice[]
-  appointments Appointment[]
   documents   Document[]
   auditLogs   AuditLog[]
   creditors   Creditor[]
   roles       UserRole[]
   standardServices StandardService[]
+  
+  // New compliance relations
+  consents    ClientConsent[]
+  psd2Auths   PSD2Authentication[]
   
   @@map("users")
 }
@@ -370,13 +374,15 @@ model Client {
   complianceStatus   ComplianceStatus @default(PENDING)
   lastComplianceCheck DateTime?
   
-  // Relations
+  // Relations (appointments deprecated - kept for data integrity)
   invoices     Invoice[]
-  appointments Appointment[]
   documents    Document[]
   approvals    ClientApproval[]
   emailLogs    EmailLog[]
   validations  ClientValidation[]
+  
+  // New compliance relations
+  consents     ClientConsent[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -570,6 +576,399 @@ model AdminNotification {
   @@map("admin_notifications")
 }
 
+// Legal Document Management
+model LegalDocument {
+  id             String   @id @default(cuid())
+  
+  // Document metadata
+  type           LegalDocumentType
+  title          String
+  description    String?
+  version        String   @default("1.0")
+  language       String   @default("nl")
+  
+  // Content
+  content        String   // HTML/Markdown content
+  templateData   Json?    // Dynamic template variables
+  
+  // Status and lifecycle
+  status         DocumentStatus @default(DRAFT)
+  publishedAt    DateTime?
+  effectiveFrom  DateTime @default(now())
+  expiresAt      DateTime?
+  
+  // Legal metadata
+  jurisdiction   String   @default("Netherlands")
+  legalBasis     String?  // GDPR legal basis, Wwft article, etc.
+  complianceStandard String[] // ISO27001, PSD2, etc.
+  
+  // Version control
+  parentVersion  String? // Previous version ID
+  changeReason   String?
+  approvedBy     String?
+  approvedAt     DateTime?
+  
+  // Relations
+  signatures     ESignature[]
+  consents       ClientConsent[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("legal_documents")
+}
+
+// Client Consent Management (GDPR)
+model ClientConsent {
+  id             String   @id @default(cuid())
+  clientId       String?
+  userId         String?
+  client         Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  // Document reference
+  documentId     String
+  document       LegalDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  // Consent details
+  consentType    ConsentType
+  purpose        String   // Processing purpose
+  legalBasis     GDPRLegalBasis
+  
+  // Consent status
+  status         ConsentStatus @default(PENDING)
+  givenAt        DateTime?
+  withdrawnAt    DateTime?
+  expiredAt      DateTime?
+  
+  // Tracking metadata
+  ipAddress      String?
+  userAgent      String?
+  method         ConsentMethod @default(WEB_FORM)
+  evidence       Json?    // Additional evidence of consent
+  
+  // Data processing scope
+  dataCategories String[] // What data is processed
+  retentionPeriod Int?    // Days to retain
+  
+  // Third party sharing
+  thirdPartySharing Boolean @default(false)
+  thirdParties   String[] // List of third parties
+  
+  // Audit trail
+  auditTrail     Json?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("client_consents")
+}
+
+// Digital Signature System
+model ESignature {
+  id             String   @id @default(cuid())
+  
+  // Signer information
+  signerId       String?
+  signerEmail    String
+  signerName     String
+  signerRole     String?
+  
+  // Document reference
+  documentId     String
+  document       LegalDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  // Signature data
+  signatureData  String   // Base64 encoded signature image
+  signatureType  SignatureType @default(DRAWN)
+  
+  // Legal validity data
+  timestamp      DateTime @default(now())
+  ipAddress      String
+  userAgent      String?
+  location       String?  // GPS coordinates if available
+  
+  // Certificate and verification
+  certificateId  String?
+  hashValue      String   // Document hash at time of signing
+  verificationCode String @unique
+  
+  // Status and workflow
+  status         SignatureStatus @default(PENDING)
+  signedAt       DateTime?
+  witnessedBy    String?
+  witnessedAt    DateTime?
+  
+  // Compliance metadata
+  complianceLevel ComplianceLevel @default(STANDARD)
+  auditTrail     Json?
+  
+  // Relations
+  verifications  SignatureVerification[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("e_signatures")
+}
+
+// Signature Verification Log
+model SignatureVerification {
+  id            String     @id @default(cuid())
+  signatureId   String
+  signature     ESignature @relation(fields: [signatureId], references: [id], onDelete: Cascade)
+  
+  // Verification details
+  verifiedBy    String?
+  verificationType VerificationType
+  result        VerificationResult
+  
+  // Technical verification
+  hashMatches   Boolean
+  timestampValid Boolean
+  certificateValid Boolean?
+  
+  // Metadata
+  verifiedAt    DateTime @default(now())
+  notes         String?
+  
+  @@map("signature_verifications")
+}
+
+// Wwft (Anti-Money Laundering) Compliance
+model WwftCheck {
+  id             String   @id @default(cuid())
+  
+  // Subject entity
+  entityType     String   // Client, Creditor, User
+  entityId       String
+  
+  // Customer Due Diligence
+  cddLevel       CDDLevel @default(SIMPLIFIED)
+  riskLevel      RiskLevel @default(LOW)
+  
+  // Identity verification
+  identityVerified Boolean @default(false)
+  identityDocuments String[] // Document URLs
+  identityVerifiedAt DateTime?
+  identityVerifiedBy String?
+  
+  // Beneficial ownership
+  beneficialOwnership Json? // Ownership structure
+  beneficialOwnersVerified Boolean @default(false)
+  
+  // PEP (Politically Exposed Person) check
+  pepCheck       Boolean @default(false)
+  pepStatus      PEPStatus @default(NOT_PEP)
+  pepCheckDate   DateTime?
+  
+  // Sanctions screening
+  sanctionsCheck Boolean @default(false)
+  sanctionsResult SanctionsResult @default(CLEAR)
+  sanctionsCheckDate DateTime?
+  
+  // Transaction monitoring
+  monitoringEnabled Boolean @default(true)
+  monitoringLevel MonitoringLevel @default(STANDARD)
+  
+  // Record keeping (5 years minimum)
+  recordsRetainUntil DateTime
+  
+  // Status and compliance
+  status         ComplianceStatus @default(PENDING)
+  completedAt    DateTime?
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  
+  // Next review
+  nextReviewDate DateTime
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("wwft_checks")
+}
+
+// PSD2 Strong Customer Authentication
+model PSD2Authentication {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Authentication factors
+  knowledgeFactor String? // Something you know (password)
+  possessionFactor String? // Something you have (device)
+  inherenceFactor String? // Something you are (biometric)
+  
+  // Transaction context
+  transactionId  String?
+  amount         Decimal? @db.Decimal(10,2)
+  payee          String?
+  transactionType String? // Payment initiation, account information
+  
+  // Authentication status
+  status         AuthenticationStatus @default(PENDING)
+  authenticatedAt DateTime?
+  expiresAt      DateTime
+  
+  // Risk assessment
+  riskScore      Decimal? @db.Decimal(3,2) // 0.00 to 1.00
+  exemptionApplied Boolean @default(false)
+  exemptionReason String?
+  
+  // Metadata
+  ipAddress      String
+  deviceId       String?
+  location       String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("psd2_authentications")
+}
+
+// Data Retention Management
+model DataRetentionPolicy {
+  id             String   @id @default(cuid())
+  
+  // Policy details
+  name           String
+  description    String?
+  dataCategory   String   // Personal data, financial data, etc.
+  entityType     String   // User, Client, Invoice, etc.
+  
+  // Retention rules
+  retentionPeriod Int     // Days to retain
+  legalBasis     String   // Legal requirement for retention
+  jurisdiction   String   @default("Netherlands")
+  
+  // Deletion rules
+  autoDelete     Boolean @default(true)
+  deletionMethod DeletionMethod @default(SECURE_DELETE)
+  notifyBefore   Int?    // Days before deletion to notify
+  
+  // Status
+  isActive       Boolean @default(true)
+  
+  // Relations
+  retentionRecords DataRetentionRecord[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("data_retention_policies")
+}
+
+// Data Retention Records (tracking what gets deleted when)
+model DataRetentionRecord {
+  id             String   @id @default(cuid())
+  policyId       String
+  policy         DataRetentionPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  
+  // Record details
+  entityType     String
+  entityId       String
+  entityData     Json?    // Snapshot of data before deletion
+  
+  // Deletion tracking
+  scheduledFor   DateTime
+  deletedAt      DateTime?
+  deletionResult DeletionResult?
+  
+  // Audit
+  deletedBy      String?
+  verifiedBy     String?
+  verifiedAt     DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("data_retention_records")
+}
+
+// ISO 27001 Security Controls
+model SecurityControl {
+  id             String   @id @default(cuid())
+  
+  // Control identification
+  controlId      String   @unique // A.5.1.1, A.6.1.2, etc.
+  title          String
+  description    String
+  category       String   // Access Control, Cryptography, etc.
+  
+  // Implementation
+  implementationStatus ImplementationStatus @default(NOT_IMPLEMENTED)
+  implementedBy  String?
+  implementedAt  DateTime?
+  
+  // Evidence and documentation
+  evidence       String[] // Document URLs
+  procedures     String?  // Implementation procedures
+  responsibleParty String?
+  
+  // Risk assessment
+  riskLevel      RiskLevel @default(MEDIUM)
+  riskMitigation String?
+  
+  // Review and audit
+  lastReviewed   DateTime?
+  reviewedBy     String?
+  nextReview     DateTime?
+  auditFindings  String?
+  
+  // Compliance mapping
+  isoRequirement String?  // ISO 27001 clause
+  otherStandards String[] // PCI DSS, SOX, etc.
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("security_controls")
+}
+
+// Business Continuity (ISO 22301)
+model BusinessContinuityPlan {
+  id             String   @id @default(cuid())
+  
+  // Plan details
+  name           String
+  description    String?
+  scope          String   // What business processes are covered
+  version        String   @default("1.0")
+  
+  // Risk assessment
+  businessImpactAnalysis Json? // BIA results
+  riskAssessment Json?         // Risk analysis
+  
+  // Recovery objectives
+  rto            Int?     // Recovery Time Objective (hours)
+  rpo            Int?     // Recovery Point Objective (hours)
+  mtpd           Int?     // Maximum Tolerable Period of Disruption
+  
+  // Plan content
+  procedures     String   // Recovery procedures
+  contacts       Json?    // Emergency contacts
+  resources      Json?    // Required resources
+  
+  // Testing and maintenance
+  lastTested     DateTime?
+  testedBy       String?
+  testResults    String?
+  nextTest       DateTime?
+  
+  // Status
+  status         PlanStatus @default(DRAFT)
+  approvedBy     String?
+  approvedAt     DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("business_continuity_plans")
+}
+
+
+
 model Invoice {
   id            String   @id @default(cuid())
   userId        String
@@ -731,12 +1130,13 @@ model InvoiceEmailLog {
   @@map("invoice_email_logs")
 }
 
+// DEPRECATED: Appointment model - kept for data integrity
+// Note: This model is deprecated as appointments are not relevant for Trust.io
+// Existing data is preserved but new appointments should not be created
 model Appointment {
   id          String   @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   clientId    String
-  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   
   title       String
   description String?
@@ -744,6 +1144,10 @@ model Appointment {
   duration    Int      // in minutes
   status      AppointmentStatus @default(SCHEDULED)
   location    String?
+  
+  // Deprecation tracking
+  isDeprecated Boolean @default(true)
+  deprecatedAt DateTime @default(now())
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -763,11 +1167,39 @@ model Document {
   type          DocumentType @default(OTHER)
   status        DocumentStatus @default(DRAFT)
   
-  content       String?
+  // File information
+  fileName      String?
+  fileSize      Int?
+  mimeType      String?
+  filePath      String?
   fileUrl       String?
-  signatureUrl  String?
   
+  // Document lifecycle
+  uploadedAt    DateTime?
   signedAt      DateTime?
+  completedAt   DateTime?
+  expiresAt     DateTime?
+  
+  // Version control
+  version       Int      @default(1)
+  parentId      String?  // For document versioning
+  isLatest      Boolean  @default(true)
+  
+  // Security & access
+  accessLevel   AccessLevel @default(PRIVATE)
+  sharedWith    String[] // Array of user IDs
+  downloadCount Int      @default(0)
+  lastAccessedAt DateTime?
+  
+  // Audit fields
+  createdBy        String?
+  updatedBy        String?
+  immudbTxId       String?
+  
+  // Compliance fields
+  dataRetentionUntil DateTime?
+  complianceStatus   ComplianceStatus @default(PENDING)
+  lastComplianceCheck DateTime?
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -775,20 +1207,27 @@ model Document {
   @@map("documents")
 }
 
-// BTW/Tax related models
+// BTW record tracking
 model BTWRecord {
-  id        String   @id @default(cuid())
-  invoiceId String   @unique
-  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  invoiceId   String   @unique
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   
-  amount    Decimal  @db.Decimal(10,2) // Excl. BTW
-  btwAmount Decimal  @db.Decimal(10,2) // BTW bedrag
-  btwRate   Int      // BTW percentage
+  // BTW calculation details
+  subtotal    Decimal  @db.Decimal(10,2)
+  btwRate     Int      // 21, 9, or 0
+  btwAmount   Decimal  @db.Decimal(10,2)
+  totalAmount Decimal  @db.Decimal(10,2)
   
-  status    BTWStatus @default(PENDING)
-  quarter   String   // Q1-2024
-  dueDate   DateTime
-  paidDate  DateTime?
+  // BTW period and status
+  quarter     String   // Q1-2024
+  year        Int
+  status      BTWStatus @default(PENDING)
+  
+  // Payment tracking
+  dueDate     DateTime
+  paidDate    DateTime?
+  paidAmount  Decimal? @db.Decimal(10,2)
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -796,16 +1235,25 @@ model BTWRecord {
   @@map("btw_records")
 }
 
+// Tax reservation tracking
 model TaxReservation {
-  id              String   @id @default(cuid())
-  invoiceId       String   @unique
-  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  invoiceId   String   @unique
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   
-  amount          Decimal  @db.Decimal(10,2) // Gereserveerd bedrag
-  reservationRate Int      // Percentage
-  year            Int
+  // Reservation details
+  reservationAmount Decimal  @db.Decimal(10,2)
+  reservationRate   Decimal  @db.Decimal(5,2) // Percentage
+  baseAmount       Decimal  @db.Decimal(10,2) // Amount reservation is based on
   
-  status          TaxReservationStatus @default(ACTIVE)
+  // Tax year and status
+  taxYear     Int
+  status      TaxReservationStatus @default(ACTIVE)
+  
+  // Usage tracking
+  usedAmount  Decimal  @db.Decimal(10,2) @default(0)
+  usedAt      DateTime?
+  releasedAt  DateTime?
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -872,77 +1320,29 @@ enum AuditAction {
   STATUS_CHANGE
 }
 
-enum InvoiceStatus {
-  DRAFT
-  SENT
-  PAID
-  OVERDUE
-  CANCELLED
+enum ComplianceLevel {
+  BASIC
+  STANDARD
+  ENHANCED
+  CRITICAL
 }
 
-enum AppointmentStatus {
-  SCHEDULED
-  COMPLETED
-  CANCELLED
-  RESCHEDULED
-}
-
-enum DocumentType {
-  CONTRACT
-  INVOICE
-  AGREEMENT
-  OTHER
-}
-
-enum DocumentStatus {
-  DRAFT
-  PENDING_SIGNATURE
-  SIGNED
-  COMPLETED
-  CANCELLED
-}
-
-enum BTWStatus {
-  PENDING
-  RESERVED
-  PREPAID
-  PAID
-  OVERDUE
-}
-
-enum TaxReservationStatus {
-  ACTIVE
-  USED
-  RELEASED
-}
-
-// New compliance and audit enums
 enum ComplianceStatus {
   PENDING
   COMPLIANT
   NON_COMPLIANT
   UNDER_REVIEW
   REQUIRES_ACTION
-  EXPIRED
-}
-
-enum ComplianceLevel {
-  STANDARD
-  ENHANCED
-  CRITICAL
-  REGULATORY
 }
 
 enum ComplianceCheckType {
-  MANDATORY_FIELDS
-  DATA_VALIDATION
-  BUSINESS_RULES
-  REGULATORY
+  DATA_COMPLETENESS
+  VALIDATION_STATUS
+  DOCUMENT_VERIFICATION
+  AUDIT_TRAIL
   RETENTION_POLICY
-  PERIODIC_REVIEW
 }
 
-// Client onboarding workflow enums
 enum ClientOnboardingStatus {
   PENDING_VALIDATION
   EMAIL_SENT
@@ -969,7 +1369,6 @@ enum ApprovalPriority {
   URGENT
 }
 
-// Email system enums
 enum EmailType {
   CLIENT_CONFIRMATION
   ADMIN_NOTIFICATION
@@ -994,7 +1393,6 @@ enum EmailStatus {
   SPAM
 }
 
-// Role-based access control enums
 enum UserRoleType {
   SUPER_ADMIN
   ADMIN
@@ -1007,7 +1405,6 @@ enum UserRoleType {
   READ_ONLY
 }
 
-// Notification system enums
 enum NotificationType {
   VALIDATION_REQUIRED
   PAYMENT_DUE
@@ -1028,28 +1425,271 @@ enum NotificationPriority {
   URGENT
 }
 
-// Enhanced invoice enums
+enum DocumentType {
+  CONTRACT
+  INVOICE
+  AGREEMENT
+  IDENTITY
+  BANK_STATEMENT
+  TAX_DOCUMENT
+  OTHER
+}
+
+enum DocumentStatus {
+  DRAFT
+  PENDING_SIGNATURE
+  SIGNED
+  COMPLETED
+  EXPIRED
+  CANCELLED
+  REVIEW          // Under review
+  PUBLISHED       // Published/active legal document
+  ARCHIVED        // Archived document
+  WITHDRAWN       // Withdrawn legal document
+}
+
+enum AccessLevel {
+  PRIVATE
+  SHARED
+  PUBLIC
+  RESTRICTED
+}
+
+// Enhanced Invoice enum types
 enum DueDateType {
-  SEVEN_DAYS    // 7 dagen standaard
-  FOURTEEN_DAYS // 14 dagen standaard
-  THIRTY_DAYS   // 30 dagen standaard
-  CUSTOM        // Aangepaste datum
+  SEVEN_DAYS
+  FOURTEEN_DAYS
+  THIRTY_DAYS
+  CUSTOM
 }
 
 enum InvoiceUnitType {
-  HOURS         // Uren × Uurtarief
-  AMOUNT        // Vast bedrag
-  DAYS          // Dagen × Dagtarief
-  PIECES        // Stuks × Stukprijs
-  KILOMETERS    // Kilometers × Tarief per km
-  PERCENTAGE    // Percentage van totaalbedrag
-  OTHER         // Andere eenheid
+  HOURS
+  AMOUNT
+  DAYS
+  PIECES
+  KILOMETERS
+  PERCENTAGE
+  OTHER
 }
 
 enum InvoiceEmailType {
-  INVOICE_SENT      // Factuur verzonden
-  REMINDER_SENT     // Herinnering verzonden
-  FINAL_NOTICE      // Laatste waarschuwing
-  PAYMENT_RECEIVED  // Betaling ontvangen
-  INVOICE_CANCELLED // Factuur geannuleerd
+  INVOICE_SENT
+  REMINDER_SENT
+  FINAL_NOTICE
+  PAYMENT_RECEIVED
+  INVOICE_CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum BTWStatus {
+  PENDING
+  RESERVED
+  PREPAID
+  PAID
+  OVERDUE
+}
+
+enum TaxReservationStatus {
+  ACTIVE
+  USED
+  RELEASED
+  EXPIRED
+}
+
+// DEPRECATED: AppointmentStatus - kept for data integrity
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+// ===== NEW COMPLIANCE & LEGAL ENUMS =====
+
+// Legal Document Types
+enum LegalDocumentType {
+  TERMS_CONDITIONS        // Algemene Voorwaarden
+  PRIVACY_POLICY         // Privacy Policy
+  AUTHORIZATION_AGREEMENT // Machtigingsovereenkomst
+  COOKIE_POLICY          // Cookie Policy
+  PROCESSOR_AGREEMENT    // Verwerkersovereenkomst
+  GDPR_CONSENT          // GDPR Toestemmingsverklaring
+  SERVICE_AGREEMENT     // Dienstverleningsovereenkomst
+  NDA                   // Non-Disclosure Agreement
+}
+
+
+
+// GDPR Consent Types
+enum ConsentType {
+  DATA_PROCESSING      // Basic data processing
+  MARKETING           // Marketing communications
+  PROFILING           // Automated profiling
+  THIRD_PARTY_SHARING // Sharing with third parties
+  COOKIES             // Cookie consent
+  NEWSLETTER          // Newsletter subscription
+  RESEARCH            // Research participation
+}
+
+// GDPR Legal Basis
+enum GDPRLegalBasis {
+  CONSENT            // Article 6(1)(a) - Consent
+  CONTRACT           // Article 6(1)(b) - Contract performance
+  LEGAL_OBLIGATION   // Article 6(1)(c) - Legal obligation
+  VITAL_INTERESTS    // Article 6(1)(d) - Vital interests
+  PUBLIC_TASK        // Article 6(1)(e) - Public task
+  LEGITIMATE_INTERESTS // Article 6(1)(f) - Legitimate interests
+}
+
+// Consent Status
+enum ConsentStatus {
+  PENDING
+  GIVEN
+  WITHDRAWN
+  EXPIRED
+  INVALID
+}
+
+// Consent Collection Method
+enum ConsentMethod {
+  WEB_FORM          // Online form
+  EMAIL_CONFIRMATION // Email confirmation
+  PAPER_FORM        // Physical paper form
+  PHONE_CONSENT     // Phone consent
+  API               // API consent
+  IMPORT            // Data import
+}
+
+// Digital Signature Types
+enum SignatureType {
+  DRAWN             // Hand-drawn signature
+  TYPED             // Typed signature
+  UPLOADED          // Uploaded signature image
+  BIOMETRIC         // Biometric signature
+  CERTIFICATE       // Digital certificate
+}
+
+// Signature Status
+enum SignatureStatus {
+  PENDING           // Awaiting signature
+  SIGNED            // Successfully signed
+  REJECTED          // Signature rejected
+  EXPIRED           // Signature request expired
+  INVALID           // Invalid signature
+  WITNESSED         // Witnessed signature
+}
+
+// Signature Verification Types
+enum VerificationType {
+  HASH_VERIFICATION    // Document hash verification
+  TIMESTAMP_CHECK      // Timestamp verification
+  CERTIFICATE_CHECK    // Certificate validation
+  BIOMETRIC_MATCH      // Biometric verification
+  MANUAL_REVIEW        // Manual verification
+}
+
+// Verification Results
+enum VerificationResult {
+  VALID
+  INVALID
+  INCONCLUSIVE
+  EXPIRED
+  REVOKED
+  PENDING
+}
+
+// Wwft Customer Due Diligence Levels
+enum CDDLevel {
+  SIMPLIFIED        // Simplified CDD
+  STANDARD          // Standard CDD
+  ENHANCED          // Enhanced CDD
+}
+
+// Risk Level Assessment
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// PEP (Politically Exposed Person) Status
+enum PEPStatus {
+  NOT_PEP          // Not a PEP
+  DOMESTIC_PEP     // Domestic PEP
+  FOREIGN_PEP      // Foreign PEP
+  INTERNATIONAL_PEP // International organization PEP
+  FAMILY_MEMBER    // Family member of PEP
+  CLOSE_ASSOCIATE  // Close associate of PEP
+}
+
+// Sanctions Screening Results
+enum SanctionsResult {
+  CLEAR             // No sanctions matches
+  POTENTIAL_MATCH   // Potential match requires review
+  CONFIRMED_MATCH   // Confirmed sanctions match
+  FALSE_POSITIVE    // Confirmed false positive
+  UNDER_REVIEW      // Manual review in progress
+}
+
+// Transaction Monitoring Level
+enum MonitoringLevel {
+  BASIC            // Basic monitoring
+  STANDARD         // Standard monitoring
+  ENHANCED         // Enhanced monitoring
+  CONTINUOUS       // Continuous monitoring
+}
+
+// PSD2 Authentication Status
+enum AuthenticationStatus {
+  PENDING          // Authentication pending
+  AUTHENTICATED    // Successfully authenticated
+  FAILED           // Authentication failed
+  EXPIRED          // Authentication expired
+  EXEMPTED         // Exemption applied
+}
+
+// Data Deletion Methods
+enum DeletionMethod {
+  SOFT_DELETE      // Mark as deleted
+  SECURE_DELETE    // Secure deletion
+  ANONYMIZATION    // Data anonymization
+  PSEUDONYMIZATION // Data pseudonymization
+  ARCHIVAL         // Move to archive
+}
+
+// Data Deletion Results
+enum DeletionResult {
+  SUCCESS          // Successfully deleted
+  PARTIAL_SUCCESS  // Partially deleted
+  FAILED           // Deletion failed
+  PENDING          // Deletion pending
+  CANCELLED        // Deletion cancelled
+  ERROR            // Deletion error
+}
+
+// ISO 27001 Implementation Status
+enum ImplementationStatus {
+  NOT_IMPLEMENTED  // Control not implemented
+  PARTIALLY_IMPLEMENTED // Partially implemented
+  IMPLEMENTED      // Fully implemented
+  NOT_APPLICABLE   // Not applicable
+  UNDER_REVIEW     // Under review
+}
+
+// Business Continuity Plan Status
+enum PlanStatus {
+  DRAFT           // Plan in draft
+  REVIEW          // Under review
+  APPROVED        // Approved plan
+  ACTIVE          // Active plan
+  ARCHIVED        // Archived plan
+  SUPERSEDED      // Superseded by new version
 }

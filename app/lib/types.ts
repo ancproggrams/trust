@@ -797,6 +797,487 @@ export interface AdminNotification {
 }
 
 // Enhanced client form for onboarding
+// ===== COMPLIANCE & LEGAL DOCUMENT TYPES =====
+
+// Legal Document Types
+export interface LegalDocument {
+  id: string;
+  type: LegalDocumentType;
+  title: string;
+  description?: string;
+  version: string;
+  language: string;
+  content: string;
+  templateData?: Record<string, any>;
+  status: DocumentStatus;
+  publishedAt?: Date;
+  effectiveFrom: Date;
+  expiresAt?: Date;
+  jurisdiction: string;
+  legalBasis?: string;
+  complianceStandard: string[];
+  parentVersion?: string;
+  changeReason?: string;
+  approvedBy?: string;
+  approvedAt?: Date;
+  signatures?: ESignature[];
+  consents?: ClientConsent[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Client Consent (GDPR)
+export interface ClientConsent {
+  id: string;
+  clientId?: string;
+  userId?: string;
+  documentId: string;
+  document: LegalDocument;
+  consentType: ConsentType;
+  purpose: string;
+  legalBasis: GDPRLegalBasis;
+  status: ConsentStatus;
+  givenAt?: Date;
+  withdrawnAt?: Date;
+  expiredAt?: Date;
+  ipAddress?: string;
+  userAgent?: string;
+  method: ConsentMethod;
+  evidence?: Record<string, any>;
+  dataCategories: string[];
+  retentionPeriod?: number;
+  thirdPartySharing: boolean;
+  thirdParties: string[];
+  auditTrail?: Record<string, any>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Digital Signature
+export interface ESignature {
+  id: string;
+  signerId?: string;
+  signerEmail: string;
+  signerName: string;
+  signerRole?: string;
+  documentId: string;
+  document: LegalDocument;
+  signatureData: string; // Base64 encoded
+  signatureType: SignatureType;
+  timestamp: Date;
+  ipAddress: string;
+  userAgent?: string;
+  location?: string;
+  certificateId?: string;
+  hashValue: string;
+  verificationCode: string;
+  status: SignatureStatus;
+  signedAt?: Date;
+  witnessedBy?: string;
+  witnessedAt?: Date;
+  complianceLevel: ComplianceLevel;
+  auditTrail?: Record<string, any>;
+  verifications?: SignatureVerification[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Signature Verification
+export interface SignatureVerification {
+  id: string;
+  signatureId: string;
+  signature: ESignature;
+  verifiedBy?: string;
+  verificationType: VerificationType;
+  result: VerificationResult;
+  hashMatches: boolean;
+  timestampValid: boolean;
+  certificateValid?: boolean;
+  verifiedAt: Date;
+  notes?: string;
+}
+
+// Wwft (Anti-Money Laundering) Check
+export interface WwftCheck {
+  id: string;
+  entityType: string;
+  entityId: string;
+  cddLevel: CDDLevel;
+  riskLevel: RiskLevel;
+  identityVerified: boolean;
+  identityDocuments: string[];
+  identityVerifiedAt?: Date;
+  identityVerifiedBy?: string;
+  beneficialOwnership?: Record<string, any>;
+  beneficialOwnersVerified: boolean;
+  pepCheck: boolean;
+  pepStatus: PEPStatus;
+  pepCheckDate?: Date;
+  sanctionsCheck: boolean;
+  sanctionsResult: SanctionsResult;
+  sanctionsCheckDate?: Date;
+  monitoringEnabled: boolean;
+  monitoringLevel: MonitoringLevel;
+  recordsRetainUntil: Date;
+  status: ComplianceStatus;
+  completedAt?: Date;
+  reviewedBy?: string;
+  reviewedAt?: Date;
+  nextReviewDate: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// PSD2 Strong Customer Authentication
+export interface PSD2Authentication {
+  id: string;
+  userId: string;
+  user: User;
+  knowledgeFactor?: string;
+  possessionFactor?: string;
+  inherenceFactor?: string;
+  transactionId?: string;
+  amount?: number;
+  payee?: string;
+  transactionType?: string;
+  status: AuthenticationStatus;
+  authenticatedAt?: Date;
+  expiresAt: Date;
+  riskScore?: number;
+  exemptionApplied: boolean;
+  exemptionReason?: string;
+  ipAddress: string;
+  deviceId?: string;
+  location?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Data Retention Policy
+export interface DataRetentionPolicy {
+  id: string;
+  name: string;
+  description?: string;
+  dataCategory: string;
+  entityType: string;
+  retentionPeriod: number;
+  legalBasis: string;
+  jurisdiction: string;
+  autoDelete: boolean;
+  deletionMethod: DeletionMethod;
+  notifyBefore?: number;
+  isActive: boolean;
+  retentionRecords?: DataRetentionRecord[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Data Retention Record
+export interface DataRetentionRecord {
+  id: string;
+  policyId: string;
+  policy: DataRetentionPolicy;
+  entityType: string;
+  entityId: string;
+  entityData?: Record<string, any>;
+  scheduledFor: Date;
+  deletedAt?: Date;
+  deletionResult?: DeletionResult;
+  deletedBy?: string;
+  verifiedBy?: string;
+  verifiedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ISO 27001 Security Control
+export interface SecurityControl {
+  id: string;
+  controlId: string;
+  title: string;
+  description: string;
+  category: string;
+  implementationStatus: ImplementationStatus;
+  implementedBy?: string;
+  implementedAt?: Date;
+  evidence: string[];
+  procedures?: string;
+  responsibleParty?: string;
+  riskLevel: RiskLevel;
+  riskMitigation?: string;
+  lastReviewed?: Date;
+  reviewedBy?: string;
+  nextReview?: Date;
+  auditFindings?: string;
+  isoRequirement?: string;
+  otherStandards: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Business Continuity Plan (ISO 22301)
+export interface BusinessContinuityPlan {
+  id: string;
+  name: string;
+  description?: string;
+  scope: string;
+  version: string;
+  businessImpactAnalysis?: Record<string, any>;
+  riskAssessment?: Record<string, any>;
+  rto?: number; // Recovery Time Objective
+  rpo?: number; // Recovery Point Objective
+  mtpd?: number; // Maximum Tolerable Period of Disruption
+  procedures: string;
+  contacts?: Record<string, any>;
+  resources?: Record<string, any>;
+  lastTested?: Date;
+  testedBy?: string;
+  testResults?: string;
+  nextTest?: Date;
+  status: PlanStatus;
+  approvedBy?: string;
+  approvedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Legal Document Form Data
+export interface LegalDocumentFormData {
+  type: LegalDocumentType;
+  title: string;
+  description?: string;
+  content: string;
+  language?: string;
+  templateData?: Record<string, any>;
+  jurisdiction?: string;
+  legalBasis?: string;
+  complianceStandard?: string[];
+  effectiveFrom?: Date;
+  expiresAt?: Date;
+}
+
+// Consent Form Data
+export interface ConsentFormData {
+  documentId: string;
+  consentType: ConsentType;
+  purpose: string;
+  legalBasis: GDPRLegalBasis;
+  dataCategories: string[];
+  retentionPeriod?: number;
+  thirdPartySharing?: boolean;
+  thirdParties?: string[];
+  evidence?: Record<string, any>;
+}
+
+// E-Signature Form Data
+export interface ESignatureFormData {
+  documentId: string;
+  signerEmail: string;
+  signerName: string;
+  signerRole?: string;
+  signatureData: string;
+  signatureType: SignatureType;
+  location?: string;
+  witnessedBy?: string;
+}
+
+// Compliance Dashboard Stats
+export interface ComplianceDashboardStats {
+  totalDocuments: number;
+  activeDocuments: number;
+  pendingSignatures: number;
+  activeConsents: number;
+  withdrawnConsents: number;
+  complianceChecks: {
+    total: number;
+    compliant: number;
+    nonCompliant: number;
+    pending: number;
+  };
+  wwftChecks: {
+    total: number;
+    completed: number;
+    pending: number;
+    highRisk: number;
+  };
+  dataRetention: {
+    totalPolicies: number;
+    scheduledDeletions: number;
+    completedDeletions: number;
+  };
+  securityControls: {
+    total: number;
+    implemented: number;
+    partiallyImplemented: number;
+    notImplemented: number;
+  };
+}
+
+// Compliance Enum Types
+export type LegalDocumentType = 
+  | 'TERMS_CONDITIONS'
+  | 'PRIVACY_POLICY'
+  | 'AUTHORIZATION_AGREEMENT'
+  | 'COOKIE_POLICY'
+  | 'PROCESSOR_AGREEMENT'
+  | 'GDPR_CONSENT'
+  | 'SERVICE_AGREEMENT'
+  | 'NDA';
+
+export type DocumentStatus = 
+  | 'DRAFT'
+  | 'PENDING_SIGNATURE'
+  | 'SIGNED'
+  | 'COMPLETED'
+  | 'EXPIRED'
+  | 'CANCELLED'
+  | 'REVIEW'
+  | 'PUBLISHED'
+  | 'ARCHIVED'
+  | 'WITHDRAWN';
+
+export type ComplianceLevel = 
+  | 'STANDARD'
+  | 'ENHANCED'
+  | 'REGULATORY';
+
+export type ComplianceStatus = 
+  | 'PENDING'
+  | 'COMPLIANT'
+  | 'NON_COMPLIANT';
+
+export type ConsentType =
+  | 'DATA_PROCESSING'
+  | 'MARKETING'
+  | 'PROFILING'
+  | 'THIRD_PARTY_SHARING'
+  | 'COOKIES'
+  | 'NEWSLETTER'
+  | 'RESEARCH';
+
+export type GDPRLegalBasis =
+  | 'CONSENT'
+  | 'CONTRACT'
+  | 'LEGAL_OBLIGATION'
+  | 'VITAL_INTERESTS'
+  | 'PUBLIC_TASK'
+  | 'LEGITIMATE_INTERESTS';
+
+export type ConsentStatus =
+  | 'PENDING'
+  | 'GIVEN'
+  | 'WITHDRAWN'
+  | 'EXPIRED'
+  | 'INVALID';
+
+export type ConsentMethod =
+  | 'WEB_FORM'
+  | 'EMAIL_CONFIRMATION'
+  | 'PAPER_FORM'
+  | 'PHONE_CONSENT'
+  | 'API'
+  | 'IMPORT';
+
+export type SignatureType =
+  | 'DRAWN'
+  | 'TYPED'
+  | 'UPLOADED'
+  | 'BIOMETRIC'
+  | 'CERTIFICATE';
+
+export type SignatureStatus =
+  | 'PENDING'
+  | 'SIGNED'
+  | 'REJECTED'
+  | 'EXPIRED'
+  | 'INVALID'
+  | 'WITNESSED';
+
+export type VerificationType =
+  | 'HASH_VERIFICATION'
+  | 'TIMESTAMP_CHECK'
+  | 'CERTIFICATE_CHECK'
+  | 'BIOMETRIC_MATCH'
+  | 'MANUAL_REVIEW';
+
+export type VerificationResult =
+  | 'VALID'
+  | 'INVALID'
+  | 'INCONCLUSIVE'
+  | 'EXPIRED'
+  | 'REVOKED'
+  | 'PENDING';
+
+export type CDDLevel =
+  | 'SIMPLIFIED'
+  | 'STANDARD'
+  | 'ENHANCED';
+
+export type RiskLevel =
+  | 'LOW'
+  | 'MEDIUM'
+  | 'HIGH'
+  | 'CRITICAL';
+
+export type PEPStatus =
+  | 'NOT_PEP'
+  | 'DOMESTIC_PEP'
+  | 'FOREIGN_PEP'
+  | 'INTERNATIONAL_PEP'
+  | 'FAMILY_MEMBER'
+  | 'CLOSE_ASSOCIATE';
+
+export type SanctionsResult =
+  | 'CLEAR'
+  | 'POTENTIAL_MATCH'
+  | 'CONFIRMED_MATCH'
+  | 'FALSE_POSITIVE'
+  | 'UNDER_REVIEW';
+
+export type MonitoringLevel =
+  | 'BASIC'
+  | 'STANDARD'
+  | 'ENHANCED'
+  | 'CONTINUOUS';
+
+export type AuthenticationStatus =
+  | 'PENDING'
+  | 'AUTHENTICATED'
+  | 'FAILED'
+  | 'EXPIRED'
+  | 'EXEMPTED';
+
+export type DeletionMethod =
+  | 'SOFT_DELETE'
+  | 'SECURE_DELETE'
+  | 'ANONYMIZATION'
+  | 'PSEUDONYMIZATION'
+  | 'ARCHIVAL';
+
+export type DeletionResult =
+  | 'SUCCESS'
+  | 'PARTIAL_SUCCESS'
+  | 'FAILED'
+  | 'PENDING'
+  | 'CANCELLED'
+  | 'ERROR';
+
+export type ImplementationStatus =
+  | 'NOT_IMPLEMENTED'
+  | 'PARTIALLY_IMPLEMENTED'
+  | 'IMPLEMENTED'
+  | 'NOT_APPLICABLE'
+  | 'UNDER_REVIEW';
+
+export type PlanStatus =
+  | 'DRAFT'
+  | 'REVIEW'
+  | 'APPROVED'
+  | 'ACTIVE'
+  | 'ARCHIVED'
+  | 'SUPERSEDED';
+
+// Extended Client Form Data
 export interface ClientFormData {
   // Basic information - Step 1
   name: string;
