@@ -1,0 +1,129 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@eslint/plugin-kit": {
+      "name": "@eslint/plugin-kit",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1106487,
+          "name": "@eslint/plugin-kit",
+          "dependency": "@eslint/plugin-kit",
+          "title": "@eslint/plugin-kit is vulnerable to Regular Expression Denial of Service attacks through ConfigCommentParser",
+          "url": "https://github.com/advisories/GHSA-xffm-g5w8-qvg7",
+          "severity": "high",
+          "cwe": [
+            "CWE-1333"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<0.3.3"
+        }
+      ],
+      "effects": [
+        "eslint"
+      ],
+      "range": "<0.3.3",
+      "nodes": [
+        "node_modules/@eslint/plugin-kit"
+      ],
+      "fixAvailable": {
+        "name": "eslint",
+        "version": "9.31.0",
+        "isSemVerMajor": false
+      }
+    },
+    "@grpc/grpc-js": {
+      "name": "@grpc/grpc-js",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1097546,
+          "name": "@grpc/grpc-js",
+          "dependency": "@grpc/grpc-js",
+          "title": "@grpc/grpc-js can allocate memory for incoming messages well above configured limits",
+          "url": "https://github.com/advisories/GHSA-7v5v-9h63-cj86",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-789"
+          ],
+          "cvss": {
+            "score": 5.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+          },
+          "range": "<1.8.22"
+        }
+      ],
+      "effects": [
+        "immudb-node"
+      ],
+      "range": "<1.8.22",
+      "nodes": [
+        "node_modules/@grpc/grpc-js"
+      ],
+      "fixAvailable": {
+        "name": "immudb-node",
+        "version": "1.0.6",
+        "isSemVerMajor": true
+      }
+    },
+    "eslint": {
+      "name": "eslint",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        "@eslint/plugin-kit"
+      ],
+      "effects": [],
+      "range": "9.10.0 - 9.26.0",
+      "nodes": [
+        "node_modules/eslint"
+      ],
+      "fixAvailable": {
+        "name": "eslint",
+        "version": "9.31.0",
+        "isSemVerMajor": false
+      }
+    },
+    "immudb-node": {
+      "name": "immudb-node",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "@grpc/grpc-js"
+      ],
+      "effects": [],
+      "range": ">=1.0.7",
+      "nodes": [
+        "node_modules/immudb-node"
+      ],
+      "fixAvailable": {
+        "name": "immudb-node",
+        "version": "1.0.6",
+        "isSemVerMajor": true
+      }
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 2,
+      "high": 2,
+      "critical": 0,
+      "total": 4
+    },
+    "dependencies": {
+      "prod": 1006,
+      "dev": 414,
+      "optional": 78,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 1435
+    }
+  }
+}
