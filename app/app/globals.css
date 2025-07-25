@@ -25,6 +25,8 @@
     --accent-foreground: 0 0% 9%;      /* Accent text */
     --destructive: 0 84.2% 60.2%;      /* Red for destructive actions */
     --destructive-foreground: 0 0% 98%; /* White on destructive */
+    --popover: 0 0% 100%;              /* Popover white background */
+    --popover-foreground: 0 0% 9%;     /* Popover text color */
   }
 }
 
