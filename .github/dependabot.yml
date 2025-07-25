@@ -1,15 +1,81 @@
 
 version: 2
 updates:
+  # Enable version updates for npm
   - package-ecosystem: "npm"
-    directory: "/app"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 10
+    versioning-strategy: increase-if-necessary
+    commit-message:
+      prefix: "npm"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "npm"
+    reviewers:
+      - "ancproggrams"
+    assignees:
+      - "ancproggrams"
+
+  # Enable version updates for Composer
+  - package-ecosystem: "composer"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 10
+    versioning-strategy: increase-if-necessary
+    commit-message:
+      prefix: "composer"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "php"
+    reviewers:
+      - "ancproggrams"
+    assignees:
+      - "ancproggrams"
+
+  # Enable version updates for pip
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 10
+    versioning-strategy: increase-if-necessary
+    commit-message:
+      prefix: "pip"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+    reviewers:
+      - "ancproggrams"
+    assignees:
+      - "ancproggrams"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
-    reviewers:
-      - "trust-io-team"
-    assignees:
-      - "trust-io-team"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Amsterdam"
     commit-message:
-      prefix: "security"
+      prefix: "ci"
       include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    reviewers:
+      - "ancproggrams"
+    assignees:
+      - "ancproggrams"

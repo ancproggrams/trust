@@ -1,0 +1,114 @@
+
+name: Dependabot Auto-Approve and Merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+
+jobs:
+  auto-approve-and-merge:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Get PR metadata
+        id: pr-metadata
+        run: |
+          echo "pr-number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          echo "pr-title=${{ github.event.pull_request.title }}" >> $GITHUB_OUTPUT
+          
+          # Check if this is a security update
+          if echo "${{ github.event.pull_request.title }}" | grep -i "security\|vulnerability\|cve"; then
+            echo "is-security=true" >> $GITHUB_OUTPUT
+          else
+            echo "is-security=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Determine update type (patch, minor, major)
+          if echo "${{ github.event.pull_request.title }}" | grep -E "patch|[0-9]+\.[0-9]+\.[0-9]+ to [0-9]+\.[0-9]+\.[0-9]+"; then
+            echo "update-type=patch" >> $GITHUB_OUTPUT
+          elif echo "${{ github.event.pull_request.title }}" | grep -E "minor|[0-9]+\.[0-9]+ to [0-9]+\.[0-9]+"; then
+            echo "update-type=minor" >> $GITHUB_OUTPUT
+          else
+            echo "update-type=major" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Auto-approve security updates
+        if: steps.pr-metadata.outputs.is-security == 'true'
+        uses: hmarr/auto-approve-action@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          review-message: "Auto-approving security update from Dependabot"
+
+      - name: Auto-approve patch updates
+        if: steps.pr-metadata.outputs.update-type == 'patch' && steps.pr-metadata.outputs.is-security == 'false'
+        uses: hmarr/auto-approve-action@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          review-message: "Auto-approving patch update from Dependabot"
+
+      - name: Auto-approve minor updates (with conditions)
+        if: steps.pr-metadata.outputs.update-type == 'minor' && steps.pr-metadata.outputs.is-security == 'false'
+        uses: hmarr/auto-approve-action@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          review-message: "Auto-approving minor update from Dependabot (low risk)"
+
+      - name: Wait for status checks
+        if: steps.pr-metadata.outputs.is-security == 'true' || steps.pr-metadata.outputs.update-type == 'patch' || steps.pr-metadata.outputs.update-type == 'minor'
+        run: |
+          echo "Waiting for status checks to complete..."
+          sleep 30
+
+      - name: Enable auto-merge for approved PRs
+        if: steps.pr-metadata.outputs.is-security == 'true' || steps.pr-metadata.outputs.update-type == 'patch' || steps.pr-metadata.outputs.update-type == 'minor'
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          pull-request-number: ${{ steps.pr-metadata.outputs.pr-number }}
+          merge-method: squash
+
+      - name: Comment on major updates
+        if: steps.pr-metadata.outputs.update-type == 'major'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🚨 **Major Update Detected** 🚨\n\nThis is a major version update that requires manual review. Please:\n1. Review the changelog\n2. Test thoroughly\n3. Approve manually if safe\n\n@ancproggrams please review this PR.'
+            })
+
+      - name: Notify team
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ job.status }}';
+            const prTitle = '${{ steps.pr-metadata.outputs.pr-title }}';
+            const updateType = '${{ steps.pr-metadata.outputs.update-type }}';
+            const isSecurity = '${{ steps.pr-metadata.outputs.is-security }}';
+            
+            let message = `Dependabot PR processed: ${prTitle}\n`;
+            message += `Update type: ${updateType}\n`;
+            message += `Security update: ${isSecurity}\n`;
+            message += `Status: ${status}\n`;
+            
+            if (status === 'success' && (isSecurity === 'true' || updateType === 'patch' || updateType === 'minor')) {
+              message += '✅ Auto-approved and queued for merge';
+            } else if (updateType === 'major') {
+              message += '⚠️ Manual review required for major update';
+            } else {
+              message += '❌ Auto-approval failed - manual intervention needed';
+            }
+            
+            console.log(message);
