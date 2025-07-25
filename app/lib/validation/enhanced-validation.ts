@@ -2,6 +2,16 @@
 import * as z from 'zod';
 import * as IBAN from 'iban';
 import validator from 'validator';
+import {
+  validatePhoneNumber as enhancedValidatePhone,
+  validateIBANNumber as enhancedValidateIBAN,
+  validatePostalCode as enhancedValidatePostal,
+  validateEmailAddress as enhancedValidateEmail,
+  validateCompanyName as enhancedValidateCompany,
+  validateAddress as enhancedValidateAddress,
+  validateAccountHolder as enhancedValidateAccountHolder,
+  ValidationResult
+} from './technical-validation';
 
 // Enhanced validation schemas with multilingual support
 export const createValidationSchemas = (t: any) => ({
@@ -15,17 +25,31 @@ export const createValidationSchemas = (t: any) => ({
     
     email: z.string()
       .min(1, t('messages.requiredField'))
-      .email(t('messages.invalidEmail')),
+      .refine(async (val) => {
+        const result = enhancedValidateEmail(val);
+        return result.isValid;
+      }, {
+        message: t('messages.invalidEmail')
+      }),
     
     phone: z.string()
       .min(1, t('messages.requiredField'))
-      .regex(/^(\+31|0)[1-9]\d{8}$/, t('messages.invalidPhone')),
+      .refine(async (val) => {
+        const result = enhancedValidatePhone(val);
+        return result.isValid;
+      }, {
+        message: t('messages.invalidPhone')
+      }),
     
     // Business details (MANDATORY)
     companyName: z.string()
       .min(1, t('messages.requiredField'))
-      .min(2, t('validation.companyNameTooShort'))
-      .max(200, t('validation.companyNameTooLong')),
+      .refine(async (val) => {
+        const result = enhancedValidateCompany(val);
+        return result.isValid;
+      }, {
+        message: t('validation.invalidCompanyName')
+      }),
     
     kvkNumber: z.string()
       .min(1, t('messages.requiredField'))
@@ -36,17 +60,49 @@ export const createValidationSchemas = (t: any) => ({
     
     vatNumber: z.string()
       .min(1, t('messages.requiredField'))
-      .regex(/^NL\d{9}B\d{2}$/, t('validation.invalidVATFormat')),
+      .refine(async (val) => {
+        // Basic format validation for EU VAT numbers
+        const cleaned = val.replace(/[\s\-\.]/g, '').toUpperCase();
+        const patterns: Record<string, RegExp> = {
+          NL: /^NL\d{9}B\d{2}$/,
+          DE: /^DE\d{9}$/,
+          FR: /^FR[A-Z0-9]{2}\d{9}$/,
+          BE: /^BE\d{10}$/,
+          AT: /^ATU\d{8}$/,
+          DK: /^DK\d{8}$/,
+          ES: /^ES[A-Z]\d{7}[A-Z]$/,
+          FI: /^FI\d{8}$/,
+          GB: /^GB(\d{9}|\d{12}|GD\d{3}|HA\d{3})$/,
+          IT: /^IT\d{11}$/,
+          LU: /^LU\d{8}$/,
+          PT: /^PT\d{9}$/,
+          SE: /^SE\d{12}$/
+        };
+        const countryCode = cleaned.substring(0, 2);
+        const pattern = patterns[countryCode];
+        return pattern ? pattern.test(cleaned) : false;
+      }, {
+        message: t('validation.invalidVATFormat')
+      }),
     
     // Contact details (MANDATORY)
     address: z.string()
       .min(1, t('messages.requiredField'))
-      .min(5, t('validation.addressTooShort'))
-      .max(200, t('validation.addressTooLong')),
+      .refine(async (val) => {
+        const result = enhancedValidateAddress(val);
+        return result.isValid;
+      }, {
+        message: t('validation.invalidAddress')
+      }),
     
     postalCode: z.string()
       .min(1, t('messages.requiredField'))
-      .regex(/^\d{4}\s?[A-Z]{2}$/i, t('validation.invalidPostalCode')),
+      .refine(async (val) => {
+        const result = enhancedValidatePostal(val);
+        return result.isValid;
+      }, {
+        message: t('validation.invalidPostalCode')
+      }),
     
     city: z.string()
       .min(1, t('messages.requiredField'))
@@ -60,7 +116,10 @@ export const createValidationSchemas = (t: any) => ({
     // Banking details (MANDATORY)
     iban: z.string()
       .min(1, t('messages.requiredField'))
-      .refine((val) => IBAN.isValid(val), {
+      .refine(async (val) => {
+        const result = enhancedValidateIBAN(val);
+        return result.isValid;
+      }, {
         message: t('messages.invalidIBAN')
       }),
     
@@ -71,8 +130,12 @@ export const createValidationSchemas = (t: any) => ({
     
     accountHolder: z.string()
       .min(1, t('messages.requiredField'))
-      .min(2, t('validation.accountHolderTooShort'))
-      .max(100, t('validation.accountHolderTooLong')),
+      .refine(async (val) => {
+        const result = enhancedValidateAccountHolder(val);
+        return result.isValid;
+      }, {
+        message: t('validation.invalidAccountHolder')
+      }),
     
     businessType: z.enum(['ZZP', 'BV', 'VOF', 'EENMANSZAAK', 'OTHER'], {
       message: t('validation.invalidBusinessType')

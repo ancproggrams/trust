@@ -408,13 +408,54 @@ export interface KvKValidationState {
   error?: string;
 }
 
-// Enhanced Creditor form with KvK validation
+// BTW/VAT API Integration Types
+export interface BTWValidationResult {
+  btwNumber: string;
+  isValid: boolean;
+  companyName?: string;
+  address?: {
+    street?: string;
+    postalCode?: string;
+    city?: string;
+    country?: string;
+  };
+  status: 'ACTIVE' | 'INACTIVE' | 'UNKNOWN';
+  validatedAt: Date;
+  source: 'API' | 'CACHE' | 'FALLBACK';
+  error?: string;
+  warnings?: string[];
+}
+
+export interface BTWValidationState {
+  isValidating: boolean;
+  hasValidated: boolean;
+  result?: BTWValidationResult;
+  error?: string;
+}
+
+// Technical Validation Types
+export interface ValidationResult {
+  isValid: boolean;
+  error?: string;
+  normalized?: string;
+  warnings?: string[];
+}
+
+export interface FormValidationState {
+  isValidating: boolean;
+  hasErrors: boolean;
+  errors: Record<string, string>;
+  warnings: Record<string, string[]>;
+  validatedFields: Set<string>;
+}
+
+// Enhanced Creditor form with KvK and BTW validation
 export interface CreditorFormData {
   // Basic information
   name: string;
   email?: string;
   phone?: string;
-  // Business details with KvK validation
+  // Business details with validation
   companyName?: string;
   kvkNumber?: string;
   vatNumber?: string;
@@ -427,8 +468,9 @@ export interface CreditorFormData {
   iban?: string;
   bankName?: string;
   accountHolder?: string;
-  // KvK validation state
+  // Validation states
   kvkValidation?: KvKValidationState;
+  btwValidation?: BTWValidationState;
 }
 
 // Re-export audit types for convenience

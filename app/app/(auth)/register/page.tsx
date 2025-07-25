@@ -19,6 +19,7 @@ import {
 import { useAuth } from '@/contexts/auth-context';
 import { OnboardingFormData, BusinessType, KvKValidationResult, KvKCompanyData } from '@/lib/types';
 import { KvKValidationField } from '@/components/forms/kvk-validation-field';
+import { BTWValidationField } from '@/components/forms/btw-validation-field';
 import { isValidEmail, isValidIBAN } from '@/lib/utils';
 
 const STEPS = [
@@ -285,16 +286,26 @@ export default function RegisterPage() {
                 className="[&_input]:h-12"
               />
 
-              <div className="space-y-2">
-                <Label htmlFor="vatNumber">BTW nummer</Label>
-                <Input
-                  id="vatNumber"
-                  placeholder="NL123456789B01"
-                  value={formData.vatNumber}
-                  onChange={(e) => updateFormData('vatNumber', e.target.value)}
-                  className="h-12"
-                />
-              </div>
+              <BTWValidationField
+                value={formData.vatNumber || ''}
+                onChange={(value) => updateFormData('vatNumber', value)}
+                onValidationResult={(result) => {
+                  if (result && result.isValid && result.companyName) {
+                    // Cross-validate with KvK data if available
+                    if (formData.companyName && result.companyName) {
+                      const similarity = result.companyName.toLowerCase().includes(formData.companyName.toLowerCase()) ||
+                                       formData.companyName.toLowerCase().includes(result.companyName.toLowerCase());
+                      if (!similarity) {
+                        console.warn('BTW company name does not match KvK company name');
+                      }
+                    }
+                  }
+                }}
+                label="BTW nummer"
+                placeholder="NL123456789B01"
+                autoValidate={true}
+                className="[&_input]:h-12"
+              />
             </div>
           </div>
         );
