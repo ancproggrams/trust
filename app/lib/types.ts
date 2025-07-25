@@ -80,28 +80,163 @@ export interface Client {
   updatedAt: Date;
 }
 
+// Enhanced Invoice types
 export interface Invoice {
   id: string;
-  clientId: string;
-  clientName: string;
   invoiceNumber: string;
-  amount: number; // Bedrag excl. BTW
-  btwAmount: number; // BTW bedrag
-  totalAmount: number; // Totaal incl. BTW
-  btwRate: number; // BTW percentage (21, 9, 0)
-  status: 'draft' | 'sent' | 'paid' | 'overdue';
-  dueDate: Date;
-  createdAt: Date;
+  title?: string;
   description: string;
-  items: InvoiceItem[];
+  notes?: string;
+  
+  // Amounts
+  subtotal: number;
+  btwAmount: number;
+  totalAmount: number;
+  btwRate: number;
+  
+  // Dates
+  issueDate: string;
+  dueDate: string;
+  dueDateType: DueDateType;
+  
+  // Status and tracking
+  status: InvoiceStatus;
+  paymentStatus: PaymentStatus;
+  paidAmount: number;
+  paidAt?: string;
+  paymentMethod?: PaymentMethod;
+  paymentReference?: string;
+  
+  // PDF and email
+  pdfPath?: string;
+  pdfGenerated: boolean;
+  pdfGeneratedAt?: string;
+  emailSent: boolean;
+  emailSentAt?: string;
+  
+  // Late payment
+  remindersSent: number;
+  lastReminderAt?: string;
+  interestRate?: number;
+  
+  // Relations
+  client: Client;
+  lineItems: InvoiceLineItem[];
+  emailLogs?: InvoiceEmailLog[];
+  
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface InvoiceItem {
+export interface InvoiceLineItem {
   id: string;
   description: string;
   quantity: number;
+  unitType: InvoiceUnitType;
   rate: number;
   amount: number;
+  notes?: string;
+  category?: string;
+  sortOrder: number;
+  standardService?: StandardService;
+}
+
+export interface StandardService {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  defaultRate: number;
+  unitType: InvoiceUnitType;
+  isActive: boolean;
+  isDefault: boolean;
+  timesUsed: number;
+  lastUsedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvoiceEmailLog {
+  id: string;
+  emailType: InvoiceEmailType;
+  recipient: string;
+  subject: string;
+  status: EmailStatus;
+  sentAt?: string;
+  openedAt?: string;
+  clickedAt?: string;
+  errorMessage?: string;
+  retryCount: number;
+  provider?: string;
+  providerMessageId?: string;
+  createdAt: string;
+}
+
+// Form types for invoice creation
+export interface InvoiceFormData {
+  title?: string;
+  description: string;
+  notes?: string;
+  clientId: string;
+  dueDateType: DueDateType;
+  customDueDate?: string;
+  lineItems: InvoiceLineItemFormData[];
+}
+
+export interface InvoiceLineItemFormData {
+  description: string;
+  quantity: number;
+  unitType: InvoiceUnitType;
+  rate: number;
+  notes?: string;
+  category?: string;
+  standardServiceId?: string;
+}
+
+export interface StandardServiceFormData {
+  name: string;
+  description?: string;
+  category?: string;
+  defaultRate: number;
+  unitType: InvoiceUnitType;
+  isDefault?: boolean;
+}
+
+// Calculation types
+export interface InvoiceCalculation {
+  subtotal: number;
+  btwAmount: number;
+  totalAmount: number;
+  lineItems: {
+    id?: string;
+    description: string;
+    quantity: number;
+    rate: number;
+    amount: number;
+  }[];
+}
+
+// PDF generation types
+export interface InvoicePDFData {
+  invoice: Invoice;
+  companyInfo: {
+    name: string;
+    address: string;
+    postalCode: string;
+    city: string;
+    country: string;
+    kvkNumber: string;
+    vatNumber: string;
+    iban: string;
+  };
+  clientInfo: {
+    name: string;
+    company?: string;
+    address?: string;
+    postalCode?: string;
+    city?: string;
+    country?: string;
+  };
 }
 
 export interface Appointment {
@@ -439,6 +574,12 @@ export type ApprovalPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
 export type EmailType = 'CLIENT_CONFIRMATION' | 'ADMIN_NOTIFICATION' | 'APPROVAL_NOTIFICATION' | 'REJECTION_NOTIFICATION' | 'REMINDER' | 'WELCOME' | 'PASSWORD_RESET' | 'INVOICE_NOTIFICATION' | 'PAYMENT_REMINDER';
 export type EmailStatus = 'PENDING' | 'QUEUED' | 'SENT' | 'DELIVERED' | 'OPENED' | 'CLICKED' | 'FAILED' | 'BOUNCED' | 'SPAM';
 export type UserRoleType = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'ACCOUNTANT' | 'USER' | 'CLIENT_VIEWER' | 'INVOICE_MANAGER' | 'CREDITOR_MANAGER' | 'READ_ONLY';
+
+// Enhanced invoice enum types
+export type DueDateType = 'SEVEN_DAYS' | 'FOURTEEN_DAYS' | 'THIRTY_DAYS' | 'CUSTOM';
+export type InvoiceUnitType = 'HOURS' | 'AMOUNT' | 'DAYS' | 'PIECES' | 'KILOMETERS' | 'PERCENTAGE' | 'OTHER';
+export type InvoiceEmailType = 'INVOICE_SENT' | 'REMINDER_SENT' | 'FINAL_NOTICE' | 'PAYMENT_RECEIVED' | 'INVOICE_CANCELLED';
+export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED';
 
 // KvK API Integration Types
 export interface KvKCompanyData {
@@ -789,3 +930,21 @@ export type {
   RetentionPolicy,
   RetentionStatus
 } from './types/audit';
+
+// Due date calculation helpers
+export const DUE_DATE_OPTIONS = [
+  { value: 'SEVEN_DAYS', label: '7 dagen', days: 7 },
+  { value: 'FOURTEEN_DAYS', label: '14 dagen', days: 14 },
+  { value: 'THIRTY_DAYS', label: '30 dagen', days: 30 },
+  { value: 'CUSTOM', label: 'Aangepaste datum', days: 0 }
+] as const;
+
+export const UNIT_TYPE_OPTIONS = [
+  { value: 'HOURS', label: 'Uren', symbol: 'uur' },
+  { value: 'AMOUNT', label: 'Vast bedrag', symbol: '€' },
+  { value: 'DAYS', label: 'Dagen', symbol: 'dag' },
+  { value: 'PIECES', label: 'Stuks', symbol: 'st' },
+  { value: 'KILOMETERS', label: 'Kilometers', symbol: 'km' },
+  { value: 'PERCENTAGE', label: 'Percentage', symbol: '%' },
+  { value: 'OTHER', label: 'Anders', symbol: '' }
+] as const;

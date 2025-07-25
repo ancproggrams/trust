@@ -563,6 +563,52 @@ export class EmailService {
     return templates[templateName]?.[language] || '';
   }
 
+  // Send invoice email (for the enhanced invoice system)
+  public async sendInvoiceEmail(options: {
+    recipient: string;
+    ccEmails?: string[];
+    subject: string;
+    template: string;
+    templateData: any;
+    attachments?: Array<{
+      filename: string;
+      path: string;
+      contentType: string;
+    }>;
+  }): Promise<{ success: boolean; messageId?: string; provider?: string; error?: string }> {
+    try {
+      // In a real implementation, this would use a service like SendGrid, AWS SES, etc.
+      // For now, we'll simulate email sending
+      
+      console.log(`📧 Mock Invoice Email Delivery:`);
+      console.log(`To: ${options.recipient}`);
+      console.log(`Subject: ${options.subject}`);
+      console.log(`Template: ${options.template}`);
+      if (options.attachments?.length) {
+        console.log(`Attachments: ${options.attachments.length} files`);
+      }
+      
+      // Simulate delivery delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const messageId = `invoice-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      console.log(`✅ Invoice email delivered successfully - ID: ${messageId}`);
+      
+      return {
+        success: true,
+        messageId,
+        provider: 'simulated',
+      };
+    } catch (error) {
+      console.error('Invoice email service error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown email error',
+      };
+    }
+  }
+
   private async getTextTemplate(templateName: string, language: string): Promise<string> {
     // Simple text versions of the templates
     const templates: Record<string, Record<string, string>> = {
@@ -694,4 +740,5 @@ interface EmailTemplate {
   textTemplate: string;
 }
 
+// Export the service instance for easy use
 export const emailService = EmailService.getInstance();

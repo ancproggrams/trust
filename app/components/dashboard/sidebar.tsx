@@ -16,10 +16,11 @@ import {
   LogOut,
   Building2,
   Receipt,
-  Calculator
+  Calculator,
+  Package
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getPendingValidations, getTotalBTWOwed } from '@/lib/mock-data';
+// LEGACY REMOVED: Mock data functions now return empty values - use API endpoints instead
 import { Badge } from '@/components/ui/badge';
 
 const navigationItems = [
@@ -37,6 +38,11 @@ const navigationItems = [
     name: 'Facturen',
     href: '/dashboard/invoices',
     icon: CreditCard,
+  },
+  {
+    name: 'Standaarddiensten',
+    href: '/dashboard/services',
+    icon: Package,
   },
   {
     name: 'Crediteuren',

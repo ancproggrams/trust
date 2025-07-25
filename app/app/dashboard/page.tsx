@@ -29,22 +29,7 @@ import {
   CreditCardIcon,
   PlayCircle
 } from 'lucide-react';
-import { 
-  mockInvoices, 
-  mockClients, 
-  mockAppointments,
-  getRecentInvoices,
-  getUpcomingAppointments,
-  getTotalBTWOwed,
-  getTotalBTWPrepaid,
-  getTotalTaxReserved,
-  getCurrentYearRevenue,
-  getEstimatedYearEndTax,
-  mockBTWRecords,
-  getExtendedDashboardStats,
-  getPendingValidations,
-  getPendingPayments
-} from '@/lib/mock-data';
+// LEGACY REMOVED: Mock data imports replaced by API calls
 import { 
   formatCurrency, 
   formatDate, 
@@ -58,22 +43,88 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { AuditTrailWidget } from '@/components/dashboard/audit-trail-widget';
 import { ComplianceWidget } from '@/components/dashboard/compliance-widget';
+import { useState, useEffect } from 'react';
+import { DashboardStats, Invoice, Appointment } from '@/lib/types';
 
 export default function DashboardPage() {
   const { isDemo, user } = useAuth();
   
-  // Get extended dashboard stats
-  const stats = getExtendedDashboardStats();
-  
-  // Find next BTW deadline
-  const nextBTWPayment = mockBTWRecords
-    .filter(record => record.status === 'pending' || record.status === 'reserved')
-    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())[0];
+  // State for dashboard data
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const recentInvoices = getRecentInvoices(5);
-  const upcomingAppointments = getUpcomingAppointments(5);
-  const pendingValidations = getPendingValidations();
-  const pendingPayments = getPendingPayments();
+  // Fetch dashboard data from API
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch dashboard stats from API
+        const statsResponse = await fetch('/api/dashboard/stats');
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          setStats(statsData);
+        }
+
+        // Fetch recent invoices from API
+        const invoicesResponse = await fetch('/api/invoices?recent=true&limit=5');
+        if (invoicesResponse.ok) {
+          const invoicesData = await invoicesResponse.json();
+          setRecentInvoices(invoicesData.invoices || []);
+        }
+
+        // Fetch upcoming appointments from API  
+        const appointmentsResponse = await fetch('/api/appointments?upcoming=true&limit=5');
+        if (appointmentsResponse.ok) {
+          const appointmentsData = await appointmentsResponse.json();
+          setUpcomingAppointments(appointmentsData.appointments || []);
+        }
+        
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 bg-gray-200 animate-pulse rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Default stats if API call failed
+  const dashboardStats = stats || {
+    totalInvoices: 0,
+    totalRevenue: 0,
+    pendingInvoices: 0,
+    upcomingAppointments: 0,
+    totalClients: 0,
+    completedAppointments: 0,
+    totalBTWOwed: 0,
+    totalBTWPrepaid: 0,
+    nextBTWPaymentDue: null,
+    totalTaxReserved: 0,
+    currentYearRevenue: 0,
+    estimatedYearEndTax: 0,
+    totalCreditors: 0,
+    pendingCreditorValidations: 0,
+    pendingPayments: 0
+  };
 
   return (
     <div className="space-y-8">
@@ -104,27 +155,27 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
           <StatsCard
             title="Totale Omzet"
-            value={formatCurrency(stats.totalRevenue)}
+            value={formatCurrency(dashboardStats.totalRevenue)}
             description="Dit jaar"
             icon={TrendingUp}
             trend={{ value: 12.5, isPositive: true }}
           />
           <StatsCard
             title="Openstaande Facturen"
-            value={stats.pendingInvoices}
+            value={dashboardStats.pendingInvoices}
             description="Wachten op betaling"
             icon={CreditCard}
           />
           <StatsCard
             title="Actieve Klanten"
-            value={stats.totalClients}
+            value={dashboardStats.totalClients}
             description="Totaal aantal"
             icon={Users}
             trend={{ value: 8.2, isPositive: true }}
           />
           <StatsCard
             title="Geplande Afspraken"
-            value={stats.upcomingAppointments}
+            value={dashboardStats.upcomingAppointments}
             description="Komende week"
             icon={Calendar}
           />
@@ -134,20 +185,20 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <StatsCard
             title="Totale Crediteuren"
-            value={stats.totalCreditors}
+            value={dashboardStats.totalCreditors}
             description="Geregistreerde leveranciers"
             icon={Building2}
             trend={{ value: 5.3, isPositive: true }}
           />
           <StatsCard
             title="Validaties Vereist"
-            value={stats.pendingCreditorValidations}
+            value={dashboardStats.pendingCreditorValidations}
             description="Wachten op goedkeuring"
             icon={UserCheck}
           />
           <StatsCard
             title="Openstaande Betalingen"
-            value={stats.pendingPayments}
+            value={dashboardStats.pendingPayments}
             description="Te verwerken uitbetalingen"
             icon={CreditCardIcon}
           />
@@ -157,28 +208,28 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatsCard
             title="BTW Openstaand"
-            value={formatCurrency(stats.totalBTWOwed)}
-            description={nextBTWPayment ? `Vervalt ${formatDate(nextBTWPayment.dueDate)}` : "Geen openstaande BTW"}
+            value={formatCurrency(dashboardStats.totalBTWOwed)}
+            description={dashboardStats.nextBTWPaymentDue ? `Vervalt ${formatDate(dashboardStats.nextBTWPaymentDue)}` : "Geen openstaande BTW"}
             icon={Receipt}
-            trend={stats.totalBTWOwed > 0 ? { value: 0, isPositive: false } : undefined}
+            trend={dashboardStats.totalBTWOwed > 0 ? { value: 0, isPositive: false } : undefined}
           />
           <StatsCard
             title="BTW Vooruitbetaald"
-            value={formatCurrency(stats.totalBTWPrepaid)}
+            value={formatCurrency(dashboardStats.totalBTWPrepaid)}
             description="Dit kwartaal"
             icon={PiggyBank}
           />
           <StatsCard
             title="Belasting Gereserveerd"
-            value={formatCurrency(stats.totalTaxReserved)}
+            value={formatCurrency(dashboardStats.totalTaxReserved)}
             description="Voor jaaraangifte"
             icon={Calculator}
             trend={{ value: 15.3, isPositive: true }}
           />
           <StatsCard
             title="Geschatte Jaarbelasting"
-            value={formatCurrency(stats.estimatedYearEndTax)}
-            description={`Op ${formatCurrency(stats.currentYearRevenue)} omzet`}
+            value={formatCurrency(dashboardStats.estimatedYearEndTax)}
+            description={`Op ${formatCurrency(dashboardStats.currentYearRevenue)} omzet`}
             icon={AlertTriangle}
           />
         </div>
@@ -216,14 +267,14 @@ export default function DashboardPage() {
                             {invoice.invoiceNumber}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {invoice.clientName}
+                            {invoice.client?.name || 'Onbekende klant'}
                           </TableCell>
                           <TableCell>
                             <div className="font-medium">
                               {formatCurrency(invoice.totalAmount)}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {formatCurrency(invoice.amount)} excl. BTW
+                              {formatCurrency(invoice.subtotal)} excl. BTW
                             </div>
                           </TableCell>
                           <TableCell className="text-sm">

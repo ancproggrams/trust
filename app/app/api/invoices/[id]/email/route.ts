@@ -1,0 +1,303 @@
+
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { secureRoute, ValidationRules } from '@/lib/middleware/security-middleware';
+import { PERMISSIONS } from '@/lib/middleware/permission-middleware';
+import { auditService } from '@/lib/services/audit-service';
+import { emailService } from '@/lib/services/email-service';
+import PDFGenerationService from '@/lib/services/pdf-generation';
+
+const prisma = new PrismaClient();
+
+export const dynamic = 'force-dynamic';
+
+// POST /api/invoices/[id]/email - Send invoice via email
+export const POST = secureRoute(async (request: NextRequest, { params }: { params: { id: string } }) => {
+  const session = await getServerSession(authOptions);
+  
+  try {
+    const { 
+      recipient, 
+      subject, 
+      message, 
+      includePDF = true,
+      sendToClient = true,
+      ccEmails = [],
+      emailType = 'INVOICE_SENT'
+    } = await request.json();
+
+    // Validate input
+    const validation = await require('@/lib/middleware/security-middleware').SecurityMiddleware.validateInput({
+      recipient,
+      subject,
+      message,
+    }, {
+      recipient: ValidationRules.email,
+      subject: ValidationRules.required,
+      message: ValidationRules.required,
+    });
+
+    if (!validation.valid) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: validation.errors },
+        { status: 400 }
+      );
+    }
+
+    // Fetch invoice with full details
+    const invoice = await prisma.invoice.findFirst({
+      where: {
+        id: params.id,
+        userId: session?.user?.id,
+      },
+      include: {
+        client: true,
+        lineItems: {
+          include: {
+            standardService: {
+              select: {
+                name: true,
+                category: true,
+              }
+            }
+          },
+          orderBy: { sortOrder: 'asc' }
+        },
+        user: {
+          include: {
+            profile: true
+          }
+        }
+      },
+    });
+
+    if (!invoice) {
+      return NextResponse.json(
+        { error: 'Invoice not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if invoice is in a sendable state
+    if (invoice.status === 'CANCELLED') {
+      return NextResponse.json(
+        { error: 'Cannot send cancelled invoice' },
+        { status: 400 }
+      );
+    }
+
+    // Use client email as default recipient if sendToClient is true
+    const finalRecipient = sendToClient ? invoice.client.email : recipient;
+    
+    if (!finalRecipient) {
+      return NextResponse.json(
+        { error: 'No recipient email address available' },
+        { status: 400 }
+      );
+    }
+
+    // Prepare email data
+    const emailData = {
+      clientName: invoice.client.name,
+      companyName: invoice.client.company || invoice.client.name,
+      invoiceNumber: invoice.invoiceNumber,
+      invoiceAmount: Number(invoice.totalAmount),
+      dueDate: invoice.dueDate.toLocaleDateString('nl-NL'),
+      senderName: invoice.user.name,
+      companyInfo: invoice.user.profile ? {
+        name: invoice.user.profile.companyName,
+        phone: invoice.user.profile.phone,
+        email: invoice.user.email,
+      } : null,
+      customMessage: message,
+      platformUrl: process.env.NEXTAUTH_URL || 'https://trust.io',
+      supportEmail: 'support@trust.io',
+      supportPhone: '+31 (0)20 123 4567',
+      brandName: 'Trust.io',
+    };
+
+    // Default email templates based on type
+    const emailTemplates = {
+      INVOICE_SENT: {
+        defaultSubject: `Factuur ${invoice.invoiceNumber} van ${emailData.companyInfo?.name || 'Trust.io'}`,
+        template: 'invoice-sent'
+      },
+      REMINDER_SENT: {
+        defaultSubject: `Herinnering: Factuur ${invoice.invoiceNumber}`,
+        template: 'payment-reminder'
+      },
+      FINAL_NOTICE: {
+        defaultSubject: `Laatste herinnering: Factuur ${invoice.invoiceNumber}`,
+        template: 'final-notice'
+      },
+    };
+
+    const emailTemplate = emailTemplates[emailType as keyof typeof emailTemplates] || emailTemplates.INVOICE_SENT;
+    const finalSubject = subject || emailTemplate.defaultSubject;
+
+    // Handle PDF attachment
+    let pdfAttachment = null;
+    if (includePDF) {
+      // Check if PDF exists, generate if needed
+      if (!invoice.pdfGenerated || !invoice.pdfPath) {
+        return NextResponse.json(
+          { 
+            error: 'PDF not generated yet. Please generate PDF first.',
+            requiresPDF: true 
+          },
+          { status: 400 }
+        );
+      }
+
+      pdfAttachment = {
+        filename: `${invoice.invoiceNumber}.pdf`,
+        path: invoice.pdfPath,
+        contentType: 'application/pdf'
+      };
+    }
+
+    // Send email
+    const emailResult = await emailService.sendInvoiceEmail({
+      recipient: finalRecipient,
+      ccEmails,
+      subject: finalSubject,
+      template: emailTemplate.template,
+      templateData: emailData,
+      attachments: pdfAttachment ? [pdfAttachment] : [],
+    });
+
+    if (!emailResult.success) {
+      return NextResponse.json(
+        { error: 'Failed to send email', details: emailResult.error },
+        { status: 500 }
+      );
+    }
+
+    // Log email in database
+    const emailLog = await prisma.invoiceEmailLog.create({
+      data: {
+        invoiceId: invoice.id,
+        emailType: emailType as any,
+        recipient: finalRecipient,
+        subject: finalSubject,
+        status: 'SENT',
+        sentAt: new Date(),
+        provider: emailResult.provider,
+        providerMessageId: emailResult.messageId,
+      },
+    });
+
+    // Update invoice status if this is the first send
+    let updatedInvoice = invoice;
+    if (!invoice.emailSent && emailType === 'INVOICE_SENT') {
+      updatedInvoice = await prisma.invoice.update({
+        where: { id: params.id },
+        data: {
+          emailSent: true,
+          emailSentAt: new Date(),
+          status: invoice.status === 'DRAFT' ? 'SENT' : invoice.status,
+          updatedBy: session?.user?.id,
+          version: { increment: 1 },
+        },
+      });
+    }
+
+    // Update reminder count for reminders
+    if (emailType === 'REMINDER_SENT' || emailType === 'FINAL_NOTICE') {
+      await prisma.invoice.update({
+        where: { id: params.id },
+        data: {
+          remindersSent: { increment: 1 },
+          lastReminderAt: new Date(),
+          updatedBy: session?.user?.id,
+          version: { increment: 1 },
+        },
+      });
+    }
+
+    // Log audit event
+    await auditService.logAction({
+      userId: session?.user?.id!,
+      action: 'UPDATE',
+      entity: 'Invoice',
+      entityId: invoice.id,
+      newValues: {
+        emailType,
+        recipient: finalRecipient,
+        emailSent: true,
+        includePDF,
+      },
+      context: `Invoice ${emailType.toLowerCase().replace('_', ' ')} sent via email`,
+    });
+
+    return NextResponse.json({
+      success: true,
+      emailLog,
+      invoice: updatedInvoice,
+      messageId: emailResult.messageId,
+      message: `Invoice email sent successfully to ${finalRecipient}`,
+    }, { status: 201 });
+
+  } catch (error) {
+    console.error('Error sending invoice email:', error);
+    return NextResponse.json(
+      { error: 'Failed to send invoice email' },
+      { status: 500 }
+    );
+  }
+}, {
+  permissions: [PERMISSIONS.INVOICE_READ],
+  rateLimit: { maxRequests: 20, windowMs: 60000 }, // 20 emails per minute
+  validateCSRF: true,
+  sanitizeInput: true,
+});
+
+// GET /api/invoices/[id]/email - Get email history for invoice
+export const GET = secureRoute(async (request: NextRequest, { params }: { params: { id: string } }) => {
+  const session = await getServerSession(authOptions);
+  
+  try {
+    // Verify invoice belongs to user
+    const invoice = await prisma.invoice.findFirst({
+      where: {
+        id: params.id,
+        userId: session?.user?.id,
+      },
+      select: { id: true },
+    });
+
+    if (!invoice) {
+      return NextResponse.json(
+        { error: 'Invoice not found' },
+        { status: 404 }
+      );
+    }
+
+    // Get email logs
+    const emailLogs = await prisma.invoiceEmailLog.findMany({
+      where: {
+        invoiceId: params.id,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return NextResponse.json({
+      success: true,
+      emailLogs,
+      totalSent: emailLogs.length,
+      lastSent: emailLogs[0]?.sentAt || null,
+    });
+
+  } catch (error) {
+    console.error('Error fetching email history:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch email history' },
+      { status: 500 }
+    );
+  }
+}, {
+  permissions: [PERMISSIONS.INVOICE_READ],
+  rateLimit: { maxRequests: 50, windowMs: 60000 },
+});

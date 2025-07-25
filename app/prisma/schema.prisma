@@ -33,6 +33,7 @@ model User {
   auditLogs   AuditLog[]
   creditors   Creditor[]
   roles       UserRole[]
+  standardServices StandardService[]
   
   @@map("users")
 }
@@ -578,15 +579,41 @@ model Invoice {
   
   invoiceNumber String   @unique
   
-  // Amounts
-  amount        Decimal  @db.Decimal(10,2) // Excl. BTW
-  btwAmount     Decimal  @db.Decimal(10,2) // BTW bedrag
-  totalAmount   Decimal  @db.Decimal(10,2) // Incl. BTW
-  btwRate       Int      // BTW percentage
-  
-  status        InvoiceStatus @default(DRAFT)
-  dueDate       DateTime
+  // Enhanced invoice details
+  title         String?
   description   String
+  notes         String?
+  
+  // Amounts
+  subtotal      Decimal  @db.Decimal(10,2) // Subtotal excl. BTW
+  btwAmount     Decimal  @db.Decimal(10,2) // BTW bedrag
+  totalAmount   Decimal  @db.Decimal(10,2) // Total incl. BTW
+  btwRate       Int      @default(21) // BTW percentage
+  
+  // Due date management
+  status        InvoiceStatus @default(DRAFT)
+  issueDate     DateTime @default(now())
+  dueDate       DateTime
+  dueDateType   DueDateType @default(CUSTOM) // Standard periods or custom
+  
+  // PDF and delivery
+  pdfPath       String?
+  pdfGenerated  Boolean @default(false)
+  pdfGeneratedAt DateTime?
+  emailSent     Boolean @default(false)
+  emailSentAt   DateTime?
+  
+  // Payment tracking
+  paymentStatus PaymentStatus @default(PENDING)
+  paidAmount    Decimal @db.Decimal(10,2) @default(0)
+  paidAt        DateTime?
+  paymentMethod PaymentMethod?
+  paymentReference String?
+  
+  // Late payment tracking
+  remindersSent Int @default(0)
+  lastReminderAt DateTime?
+  interestRate  Decimal? @db.Decimal(5,2) // Late payment interest rate
   
   // Audit fields
   createdBy        String?
@@ -600,9 +627,10 @@ model Invoice {
   lastComplianceCheck DateTime?
   
   // Relations
-  items         InvoiceItem[]
+  lineItems     InvoiceLineItem[]
   btwRecord     BTWRecord?
   taxReservation TaxReservation?
+  emailLogs     InvoiceEmailLog[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -610,19 +638,97 @@ model Invoice {
   @@map("invoices")
 }
 
-model InvoiceItem {
-  id          String   @id @default(cuid())
-  invoiceId   String
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+// Enhanced invoice line items with unit types and standard services
+model InvoiceLineItem {
+  id            String   @id @default(cuid())
+  invoiceId     String
+  invoice       Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   
-  description String
-  quantity    Int
-  rate        Decimal  @db.Decimal(10,2)
-  amount      Decimal  @db.Decimal(10,2)
+  // Service reference (optional)
+  standardServiceId String?
+  standardService   StandardService? @relation(fields: [standardServiceId], references: [id], onDelete: SetNull)
+  
+  // Line item details
+  description   String
+  quantity      Decimal  @db.Decimal(10,2) // Support fractional quantities (e.g., 1.5 hours)
+  unitType      InvoiceUnitType @default(AMOUNT) // Hours, amount, etc.
+  rate          Decimal  @db.Decimal(10,2) // Rate per unit
+  amount        Decimal  @db.Decimal(10,2) // Total line amount
+  
+  // Optional details
+  notes         String?
+  category      String? // For categorizing line items
+  
+  // Ordering
+  sortOrder     Int      @default(0)
   
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   
-  @@map("invoice_items")
+  @@map("invoice_line_items")
+}
+
+// Standard services for quick invoice creation
+model StandardService {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Service details
+  name        String
+  description String?
+  category    String? // For organizing services
+  
+  // Pricing
+  defaultRate Decimal  @db.Decimal(10,2)
+  unitType    InvoiceUnitType @default(HOURS)
+  
+  // Settings
+  isActive    Boolean @default(true)
+  isDefault   Boolean @default(false) // Mark as default service
+  
+  // Usage tracking
+  timesUsed   Int     @default(0)
+  lastUsedAt  DateTime?
+  
+  // Relations
+  lineItems   InvoiceLineItem[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("standard_services")
+}
+
+// Email tracking specifically for invoices
+model InvoiceEmailLog {
+  id        String   @id @default(cuid())
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  // Email details
+  emailType InvoiceEmailType @default(INVOICE_SENT)
+  recipient String
+  subject   String
+  
+  // Delivery tracking
+  status    EmailStatus @default(PENDING)
+  sentAt    DateTime?
+  openedAt  DateTime?
+  clickedAt DateTime?
+  
+  // Error handling
+  errorMessage String?
+  retryCount   Int @default(0)
+  
+  // Provider details
+  provider     String? // Email service provider
+  providerMessageId String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("invoice_email_logs")
 }
 
 model Appointment {
@@ -920,4 +1026,30 @@ enum NotificationPriority {
   MEDIUM
   HIGH
   URGENT
+}
+
+// Enhanced invoice enums
+enum DueDateType {
+  SEVEN_DAYS    // 7 dagen standaard
+  FOURTEEN_DAYS // 14 dagen standaard
+  THIRTY_DAYS   // 30 dagen standaard
+  CUSTOM        // Aangepaste datum
+}
+
+enum InvoiceUnitType {
+  HOURS         // Uren × Uurtarief
+  AMOUNT        // Vast bedrag
+  DAYS          // Dagen × Dagtarief
+  PIECES        // Stuks × Stukprijs
+  KILOMETERS    // Kilometers × Tarief per km
+  PERCENTAGE    // Percentage van totaalbedrag
+  OTHER         // Andere eenheid
+}
+
+enum InvoiceEmailType {
+  INVOICE_SENT      // Factuur verzonden
+  REMINDER_SENT     // Herinnering verzonden
+  FINAL_NOTICE      // Laatste waarschuwing
+  PAYMENT_RECEIVED  // Betaling ontvangen
+  INVOICE_CANCELLED // Factuur geannuleerd
 }

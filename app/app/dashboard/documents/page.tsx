@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/dashboard/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -64,7 +64,7 @@ import {
   Clock,
   AlertCircle
 } from 'lucide-react';
-import { mockDocuments, mockClients } from '@/lib/mock-data';
+// LEGACY REMOVED: Mock data imports replaced by API calls
 import { Document } from '@/lib/types';
 import { 
   formatDate, 
@@ -76,8 +76,40 @@ import {
 import Link from 'next/link';
 
 export default function DocumentsPage() {
-  const [documents, setDocuments] = useState<Document[]>(mockDocuments);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Fetch data from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch documents
+        const docsResponse = await fetch('/api/documents');
+        if (docsResponse.ok) {
+          const docsData = await docsResponse.json();
+          setDocuments(docsData.documents || []);
+        }
+
+        // Fetch clients
+        const clientsResponse = await fetch('/api/clients');
+        if (clientsResponse.ok) {
+          const clientsData = await clientsResponse.json();
+          setClients(clientsData.clients || []);
+        }
+        
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -148,9 +180,9 @@ export default function DocumentsPage() {
       return;
     }
 
-    let client: typeof mockClients[0] | undefined = undefined;
+    let client: typeof clients[0] | undefined = undefined;
     if (formData.clientId) {
-      client = mockClients.find(c => c.id === formData.clientId);
+      client = clients.find(c => c.id === formData.clientId);
     }
 
     const newDocument: Document = {
@@ -176,9 +208,9 @@ export default function DocumentsPage() {
       return;
     }
 
-    let client: typeof mockClients[0] | undefined = undefined;
+    let client: typeof clients[0] | undefined = undefined;
     if (formData.clientId) {
-      client = mockClients.find(c => c.id === formData.clientId);
+      client = clients.find(c => c.id === formData.clientId);
     }
 
     const updatedDocuments = documents.map(document =>
@@ -501,7 +533,7 @@ export default function DocumentsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Geen klant</SelectItem>
-                  {mockClients.map((client) => (
+                  {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id}>
                       {client.name} - {client.company || client.email}
                     </SelectItem>
@@ -582,7 +614,7 @@ export default function DocumentsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Geen klant</SelectItem>
-                  {mockClients.map((client) => (
+                  {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id}>
                       {client.name} - {client.company || client.email}
                     </SelectItem>

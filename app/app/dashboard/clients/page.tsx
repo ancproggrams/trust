@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/dashboard/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -51,13 +51,36 @@ import {
   Phone,
   Users
 } from 'lucide-react';
-import { mockClients } from '@/lib/mock-data';
+// LEGACY REMOVED: Mock clients import replaced by API calls
 import { Client } from '@/lib/types';
 import { formatCurrency, formatDate, generateId, getInitials } from '@/lib/utils';
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>(mockClients as Client[]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Fetch clients from API
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/clients');
+        if (response.ok) {
+          const data = await response.json();
+          setClients(data.clients || []);
+        } else {
+          console.error('Failed to fetch clients');
+        }
+      } catch (error) {
+        console.error('Error fetching clients:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClients();
+  }, []);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);

@@ -2,17 +2,22 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import EnhancedInvoiceList from '@/components/invoices/enhanced-invoice-list';
+import InvoiceDetailView from '@/components/invoices/invoice-detail-view';
 import EnhancedInvoiceWizard from '@/components/forms/enhanced-invoice-wizard';
 import { useToast } from '@/hooks/use-toast';
 import { Client } from '@/lib/types';
 
-export default function InvoicesPage() {
+export default function InvoiceDetailPage() {
+  const params = useParams();
+  const router = useRouter();
   const { toast } = useToast();
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const invoiceId = params.id as string;
+
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
 
@@ -38,41 +43,50 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleCreateInvoice = async () => {
+  const handleEdit = async () => {
     await loadClients();
-    setShowCreateDialog(true);
+    setShowEditDialog(true);
   };
 
-  const handleInvoiceCreated = (invoice: any) => {
-    setShowCreateDialog(false);
+  const handleDelete = () => {
+    // Navigate back to invoices list after deletion
+    router.push('/dashboard/invoices');
+  };
+
+  const handleInvoiceUpdated = (invoice: any) => {
+    setShowEditDialog(false);
     toast({
-      title: "Factuur aangemaakt",
-      description: `Factuur ${invoice.invoiceNumber} is succesvol aangemaakt.`,
+      title: "Factuur bijgewerkt",
+      description: `Factuur ${invoice.invoiceNumber} is succesvol bijgewerkt.`,
     });
-    // The invoice list will automatically refresh
+    // The detail view will automatically refresh
+  };
+
+  const handleBack = () => {
+    router.push('/dashboard/invoices');
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Facturen</h1>
-          <p className="text-muted-foreground">
-            Beheer al je facturen en betalingen op één plek
-          </p>
-        </div>
+      <div className="flex items-center gap-4">
+        <Button variant="outline" onClick={handleBack}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Terug naar Facturen
+        </Button>
       </div>
 
-      <EnhancedInvoiceList 
-        showCreateButton={true}
-        onCreateInvoice={handleCreateInvoice}
+      <InvoiceDetailView
+        invoiceId={invoiceId}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        showActions={true}
       />
 
-      {/* Create Invoice Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+      {/* Edit Invoice Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nieuwe Factuur Aanmaken</DialogTitle>
+            <DialogTitle>Factuur Bewerken</DialogTitle>
           </DialogHeader>
           
           {loadingClients ? (
@@ -80,17 +94,17 @@ export default function InvoicesPage() {
           ) : clients.length === 0 ? (
             <div className="py-8 text-center">
               <p className="text-muted-foreground mb-4">
-                Je hebt nog geen gevalideerde klanten die facturen kunnen ontvangen.
+                Kon klanten niet laden voor bewerking.
               </p>
-              <Button onClick={() => setShowCreateDialog(false)}>
+              <Button onClick={() => setShowEditDialog(false)}>
                 Sluit
               </Button>
             </div>
           ) : (
             <EnhancedInvoiceWizard
               clients={clients}
-              onSuccess={handleInvoiceCreated}
-              onCancel={() => setShowCreateDialog(false)}
+              onSuccess={handleInvoiceUpdated}
+              onCancel={() => setShowEditDialog(false)}
             />
           )}
         </DialogContent>

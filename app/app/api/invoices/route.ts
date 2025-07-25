@@ -6,6 +6,8 @@ import { authOptions } from '@/lib/auth';
 import { secureRoute, ValidationRules } from '@/lib/middleware/security-middleware';
 import { PERMISSIONS, checkClientInvoicePermission } from '@/lib/middleware/permission-middleware';
 import { auditService } from '@/lib/services/audit-service';
+import InvoiceCalculationService from '@/lib/services/invoice-calculation';
+import { InvoiceFormData, DueDateType, InvoiceUnitType } from '@/lib/types';
 
 const prisma = new PrismaClient();
 
@@ -45,9 +47,29 @@ export const GET = secureRoute(async (request: NextRequest) => {
               name: true,
               email: true,
               company: true,
+              phone: true,
+              address: true,
+              postalCode: true,
+              city: true,
+              country: true,
             }
           },
-          items: true,
+          lineItems: {
+            include: {
+              standardService: {
+                select: {
+                  id: true,
+                  name: true,
+                  category: true,
+                }
+              }
+            },
+            orderBy: { sortOrder: 'asc' }
+          },
+          emailLogs: {
+            orderBy: { createdAt: 'desc' },
+            take: 5 // Recent email logs
+          }
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -79,21 +101,19 @@ export const GET = secureRoute(async (request: NextRequest) => {
   rateLimit: { maxRequests: 100, windowMs: 60000 },
 });
 
-// POST /api/invoices - Create new invoice with security checks
+// POST /api/invoices - Create enhanced invoice with line items and services
 export const POST = secureRoute(async (request: NextRequest) => {
   const session = await getServerSession(authOptions);
   
   try {
-    const data = await request.json();
+    const formData: InvoiceFormData = await request.json();
 
     // Validate required fields
-    const validation = await require('@/lib/middleware/security-middleware').SecurityMiddleware.validateInput(data, {
+    const validation = await require('@/lib/middleware/security-middleware').SecurityMiddleware.validateInput(formData, {
       clientId: ValidationRules.required,
-      amount: (value: any) => typeof value === 'number' && value > 0 || 'Amount must be a positive number',
-      btwRate: (value: any) => [0, 9, 21].includes(value) || 'BTW rate must be 0, 9, or 21',
       description: ValidationRules.required,
-      dueDate: ValidationRules.required,
-      items: (value: any) => Array.isArray(value) && value.length > 0 || 'At least one item is required',
+      dueDateType: (value: any) => ['SEVEN_DAYS', 'FOURTEEN_DAYS', 'THIRTY_DAYS', 'CUSTOM'].includes(value) || 'Invalid due date type',
+      lineItems: (value: any) => Array.isArray(value) && value.length > 0 || 'At least one line item is required',
     });
 
     if (!validation.valid) {
@@ -103,10 +123,19 @@ export const POST = secureRoute(async (request: NextRequest) => {
       );
     }
 
+    // Validate line items
+    const lineItemValidation = InvoiceCalculationService.validateLineItems(formData.lineItems);
+    if (!lineItemValidation.isValid) {
+      return NextResponse.json(
+        { error: 'Line item validation failed', details: lineItemValidation.errors },
+        { status: 400 }
+      );
+    }
+
     // SECURITY CHECK: Verify client approval and invoice permissions
     const clientPermissionCheck = await checkClientInvoicePermission(
       session?.user?.id!,
-      data.clientId
+      formData.clientId
     );
 
     if (!clientPermissionCheck.hasPermission) {
@@ -117,7 +146,7 @@ export const POST = secureRoute(async (request: NextRequest) => {
         entityId: 'BLOCKED_CREATION',
         context: `Invoice creation blocked: ${clientPermissionCheck.reason}`,
         newValues: {
-          clientId: data.clientId,
+          clientId: formData.clientId,
           reason: clientPermissionCheck.reason,
         },
       });
@@ -134,80 +163,133 @@ export const POST = secureRoute(async (request: NextRequest) => {
     // Verify client exists and belongs to user
     const client = await prisma.client.findFirst({
       where: {
-        id: data.clientId,
+        id: formData.clientId,
         userId: session?.user?.id,
         isActive: true,
+        canCreateInvoices: true,
       },
     });
 
     if (!client) {
       return NextResponse.json(
-        { error: 'Client not found or access denied' },
+        { error: 'Client not found, access denied, or invoice permission not granted' },
         { status: 404 }
       );
     }
 
-    // Calculate amounts
-    const amount = parseFloat(data.amount);
-    const btwRate = parseInt(data.btwRate);
-    const btwAmount = (amount * btwRate) / 100;
-    const totalAmount = amount + btwAmount;
+    // Calculate invoice totals
+    const calculation = InvoiceCalculationService.calculateInvoice(formData.lineItems);
+    
+    // Calculate due date
+    const issueDate = new Date();
+    const customDueDate = formData.customDueDate ? new Date(formData.customDueDate) : undefined;
+    const dueDate = InvoiceCalculationService.calculateDueDate(issueDate, formData.dueDateType, customDueDate);
 
     // Generate invoice number
-    const invoiceCount = await prisma.invoice.count({
-      where: { userId: session?.user?.id }
-    });
-    const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceCount + 1).padStart(4, '0')}`;
+    const invoiceNumber = InvoiceCalculationService.generateInvoiceNumber('INV', issueDate.getFullYear());
 
-    // Create invoice with items
-    const invoice = await prisma.invoice.create({
-      data: {
-        userId: session?.user?.id!,
-        clientId: data.clientId,
-        invoiceNumber,
-        amount,
-        btwAmount,
-        totalAmount,
-        btwRate,
-        status: 'DRAFT',
-        dueDate: new Date(data.dueDate),
-        description: data.description,
-        
-        // Audit fields
-        createdBy: session?.user?.id,
-        version: 1,
-        
-        // Create invoice items
-        items: {
-          create: data.items.map((item: any) => ({
-            description: item.description,
-            quantity: parseInt(item.quantity),
-            rate: parseFloat(item.rate),
-            amount: parseFloat(item.amount),
-          })),
-        },
-      },
-      include: {
-        client: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            company: true,
-          }
-        },
-        items: true,
-      },
-    });
+    // Prepare standard service updates (increment usage count)
+    const standardServiceUpdates = formData.lineItems
+      .filter(item => item.standardServiceId)
+      .map(item => prisma.standardService.update({
+        where: { id: item.standardServiceId! },
+        data: {
+          timesUsed: { increment: 1 },
+          lastUsedAt: new Date(),
+        }
+      }));
 
-    // Update client total invoiced
-    await prisma.client.update({
-      where: { id: data.clientId },
-      data: {
-        totalInvoiced: {
-          increment: totalAmount,
+    // Create invoice with enhanced features
+    const invoice = await prisma.$transaction(async (tx) => {
+      // Create invoice
+      const createdInvoice = await tx.invoice.create({
+        data: {
+          userId: session?.user?.id!,
+          clientId: formData.clientId,
+          invoiceNumber,
+          title: formData.title,
+          description: formData.description,
+          notes: formData.notes,
+          
+          // Calculated amounts
+          subtotal: calculation.subtotal,
+          btwAmount: calculation.btwAmount,
+          totalAmount: calculation.totalAmount,
+          btwRate: 21, // Default BTW rate
+          
+          // Dates
+          issueDate,
+          dueDate,
+          dueDateType: formData.dueDateType,
+          
+          // Status
+          status: 'DRAFT',
+          paymentStatus: 'PENDING',
+          
+          // Audit fields
+          createdBy: session?.user?.id,
+          version: 1,
+          
+          // Create line items
+          lineItems: {
+            create: formData.lineItems.map((item, index) => ({
+              standardServiceId: item.standardServiceId,
+              description: item.description,
+              quantity: item.quantity,
+              unitType: item.unitType,
+              rate: item.rate,
+              amount: InvoiceCalculationService.calculateLineItem(item.quantity, item.rate),
+              notes: item.notes,
+              category: item.category,
+              sortOrder: index,
+            })),
+          },
         },
-      },
+        include: {
+          client: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              company: true,
+              phone: true,
+              address: true,
+              postalCode: true,
+              city: true,
+              country: true,
+            }
+          },
+          lineItems: {
+            include: {
+              standardService: {
+                select: {
+                  id: true,
+                  name: true,
+                  category: true,
+                }
+              }
+            },
+            orderBy: { sortOrder: 'asc' }
+          },
+        },
+      });
+
+      // Update client total invoiced
+      await tx.client.update({
+        where: { id: formData.clientId },
+        data: {
+          totalInvoiced: {
+            increment: calculation.totalAmount,
+          },
+        },
+      });
+
+      // Update standard service usage counts
+      if (standardServiceUpdates.length > 0) {
+        await Promise.all(standardServiceUpdates);
+      }
+
+      return createdInvoice;
     });
 
     // Log audit event
@@ -221,18 +303,20 @@ export const POST = secureRoute(async (request: NextRequest) => {
         clientId: invoice.clientId,
         totalAmount: invoice.totalAmount,
         status: invoice.status,
+        lineItemsCount: invoice.lineItems.length,
       },
-      context: 'Invoice created with security verification',
+      context: 'Enhanced invoice created with security verification and line items',
     });
 
     return NextResponse.json({
       success: true,
       invoice,
+      calculation,
       message: 'Invoice created successfully',
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Error creating invoice:', error);
+    console.error('Error creating enhanced invoice:', error);
     return NextResponse.json(
       { error: 'Failed to create invoice' },
       { status: 500 }

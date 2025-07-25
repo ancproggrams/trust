@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/dashboard/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -61,8 +61,8 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react';
-import { mockAppointments, mockClients } from '@/lib/mock-data';
-import { Appointment } from '@/lib/types';
+// LEGACY REMOVED: Mock data imports replaced by API calls
+import { Appointment, Client } from '@/lib/types';
 import { 
   formatDate, 
   formatDateTime, 
@@ -73,8 +73,40 @@ import {
 } from '@/lib/utils';
 
 export default function AppointmentsPage() {
-  const [appointments, setAppointments] = useState<Appointment[]>(mockAppointments);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Fetch appointments and clients from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch appointments
+        const appointmentsResponse = await fetch('/api/appointments');
+        if (appointmentsResponse.ok) {
+          const appointmentsData = await appointmentsResponse.json();
+          setAppointments(appointmentsData.appointments || []);
+        }
+
+        // Fetch clients for the dropdown
+        const clientsResponse = await fetch('/api/clients');
+        if (clientsResponse.ok) {
+          const clientsData = await clientsResponse.json();
+          setClients(clientsData.clients || []);
+        }
+        
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -154,7 +186,7 @@ export default function AppointmentsPage() {
       return;
     }
 
-    const client = mockClients.find(c => c.id === formData.clientId);
+    const client = clients.find(c => c.id === formData.clientId);
     if (!client) {
       alert('Selecteer een geldige klant');
       return;
@@ -186,7 +218,7 @@ export default function AppointmentsPage() {
       return;
     }
 
-    const client = mockClients.find(c => c.id === formData.clientId);
+    const client = clients.find(c => c.id === formData.clientId);
     if (!client) {
       alert('Selecteer een geldige klant');
       return;
@@ -461,7 +493,7 @@ export default function AppointmentsPage() {
                   <SelectValue placeholder="Selecteer een klant" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockClients.map((client) => (
+                  {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id}>
                       {client.name} - {client.company || client.email}
                     </SelectItem>
@@ -561,7 +593,7 @@ export default function AppointmentsPage() {
                   <SelectValue placeholder="Selecteer een klant" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockClients.map((client) => (
+                  {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id}>
                       {client.name} - {client.company || client.email}
                     </SelectItem>

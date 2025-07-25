@@ -1,6 +1,6 @@
 
 import { 
-  Client, Invoice, Appointment, Document, InvoiceItem, BTWRecord, TaxReservation, TaxSettings,
+  Client, Invoice, Appointment, Document, InvoiceLineItem, BTWRecord, TaxReservation, TaxSettings,
   Creditor, CreditorValidation, Payment, AuditLog, UserProfile, DemoSettings,
   ValidationStatus, BusinessType, OnboardingStep, ValidationMethod, PaymentStatus, PaymentMethod, AuditAction
 } from './types';
@@ -61,7 +61,7 @@ export const mockClients: Partial<Client>[] = [
 ];
 
 // Mock Invoice Items
-const mockInvoiceItems: InvoiceItem[] = [
+const mockInvoiceItems: any[] = [
   {
     id: '1',
     description: 'Website ontwikkeling',
@@ -99,69 +99,8 @@ const createInvoiceWithBTW = (invoice: any): Invoice => {
   };
 };
 
-// Mock Invoices Data
-export const mockInvoices: Invoice[] = [
-  createInvoiceWithBTW({
-    id: '1',
-    clientId: '1',
-    clientName: 'Acme Corporation',
-    invoiceNumber: 'INV-2024-001',
-    amount: 6325.00,
-    status: 'paid',
-    dueDate: new Date('2024-07-31'),
-    createdAt: new Date('2024-07-01'),
-    description: 'Website ontwikkeling en SEO optimalisatie',
-    items: mockInvoiceItems.slice(0, 2),
-  }),
-  createInvoiceWithBTW({
-    id: '2',
-    clientId: '2',
-    clientName: 'TechStart Solutions',
-    invoiceNumber: 'INV-2024-002',
-    amount: 4750.00,
-    status: 'sent',
-    dueDate: new Date('2024-08-15'),
-    createdAt: new Date('2024-07-15'),
-    description: 'Consultancy en implementatie',
-    items: [mockInvoiceItems[2]],
-  }),
-  createInvoiceWithBTW({
-    id: '3',
-    clientId: '3',
-    clientName: 'Green Energy Partners',
-    invoiceNumber: 'INV-2024-003',
-    amount: 7800.00,
-    status: 'overdue',
-    dueDate: new Date('2024-07-20'),
-    createdAt: new Date('2024-06-20'),
-    description: 'Energie management systeem',
-    items: mockInvoiceItems,
-  }),
-  createInvoiceWithBTW({
-    id: '4',
-    clientId: '4',
-    clientName: 'Digital Marketing Pro',
-    invoiceNumber: 'INV-2024-004',
-    amount: 2850.00,
-    status: 'draft',
-    dueDate: new Date('2024-08-30'),
-    createdAt: new Date('2024-07-20'),
-    description: 'Marketing automation setup',
-    items: [mockInvoiceItems[1]],
-  }),
-  createInvoiceWithBTW({
-    id: '5',
-    clientId: '5',
-    clientName: 'Healthcare Innovations',
-    invoiceNumber: 'INV-2024-005',
-    amount: 5200.00,
-    status: 'sent',
-    dueDate: new Date('2024-08-25'),
-    createdAt: new Date('2024-07-25'),
-    description: 'Healthtech platform ontwikkeling',
-    items: [mockInvoiceItems[0]],
-  }),
-];
+// Mock Invoices Data - REMOVED: Replaced by database-driven enhanced invoice system
+export const mockInvoices: Invoice[] = [];
 
 // Mock Appointments Data
 export const mockAppointments: Appointment[] = [
@@ -294,7 +233,8 @@ export const getClientById = (id: string): Partial<Client> | undefined => {
 };
 
 export const getInvoicesByClientId = (clientId: string): Invoice[] => {
-  return mockInvoices.filter(invoice => invoice.clientId === clientId);
+  // LEGACY REMOVED: Use database API instead - /api/invoices?clientId={clientId}
+  return [];
 };
 
 export const getAppointmentsByClientId = (clientId: string): Appointment[] => {
@@ -306,9 +246,8 @@ export const getDocumentsByClientId = (clientId: string): Document[] => {
 };
 
 export const getRecentInvoices = (limit: number = 5): Invoice[] => {
-  return mockInvoices
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    .slice(0, limit);
+  // LEGACY REMOVED: Use database API instead - /api/invoices?recent=true&limit={limit}
+  return [];
 };
 
 export const getUpcomingAppointments = (limit: number = 5): Appointment[] => {
@@ -319,42 +258,11 @@ export const getUpcomingAppointments = (limit: number = 5): Appointment[] => {
     .slice(0, limit);
 };
 
-// Mock BTW Records Data
-export const mockBTWRecords: BTWRecord[] = mockInvoices.map(invoice => {
-  const quarter = getBTWQuarter(invoice.createdAt);
-  const dueDate = getNextBTWDeadline(quarter);
-  
-  return {
-    id: `btw-${invoice.id}`,
-    invoiceId: invoice.id,
-    amount: invoice.amount,
-    btwAmount: invoice.btwAmount,
-    btwRate: invoice.btwRate,
-    status: invoice.status === 'paid' ? 'reserved' : 'pending',
-    quarter,
-    dueDate,
-    paidDate: invoice.status === 'paid' ? new Date(invoice.createdAt.getTime() + 7 * 24 * 60 * 60 * 1000) : undefined,
-    createdAt: invoice.createdAt,
-  };
-});
+// Mock BTW Records Data - Temporarily simplified 
+export const mockBTWRecords: BTWRecord[] = [];
 
-// Mock Tax Reservation Data
-export const mockTaxReservations: TaxReservation[] = mockInvoices
-  .filter(invoice => invoice.status === 'paid')
-  .map(invoice => {
-    const reservationRate = 25; // 25% reservering voor omzetbelasting
-    const reservationAmount = calculateTaxReservation(invoice.amount, reservationRate);
-    
-    return {
-      id: `tax-${invoice.id}`,
-      invoiceId: invoice.id,
-      amount: reservationAmount,
-      reservationRate,
-      year: invoice.createdAt.getFullYear(),
-      status: 'active',
-      createdAt: invoice.createdAt,
-    };
-  });
+// Mock Tax Reservation Data - Temporarily simplified
+export const mockTaxReservations: TaxReservation[] = [];
 
 // Mock Tax Settings
 export const mockTaxSettings: TaxSettings = {
@@ -377,11 +285,13 @@ export const mockTaxSettings: TaxSettings = {
 
 // BTW gerelateerde helper functions
 export const getBTWRecordsByQuarter = (quarter: string): BTWRecord[] => {
-  return mockBTWRecords.filter(record => record.quarter === quarter);
+  // LEGACY REMOVED: Use database API instead - /api/btw/records?quarter={quarter}
+  return [];
 };
 
 export const getTaxReservationsByYear = (year: number): TaxReservation[] => {
-  return mockTaxReservations.filter(reservation => reservation.year === year);
+  // LEGACY REMOVED: Use database API instead - /api/tax/reservations?year={year}
+  return [];
 };
 
 export const getCurrentQuarterBTW = (): BTWRecord[] => {
@@ -390,28 +300,23 @@ export const getCurrentQuarterBTW = (): BTWRecord[] => {
 };
 
 export const getTotalBTWOwed = (): number => {
-  return mockBTWRecords
-    .filter(record => record.status === 'pending' || record.status === 'reserved')
-    .reduce((sum, record) => sum + record.btwAmount, 0);
+  // LEGACY REMOVED: Use database API instead - /api/dashboard/btw-stats
+  return 0;
 };
 
 export const getTotalBTWPrepaid = (): number => {
-  return mockBTWRecords
-    .filter(record => record.status === 'prepaid')
-    .reduce((sum, record) => sum + record.btwAmount, 0);
+  // LEGACY REMOVED: Use database API instead - /api/dashboard/btw-stats
+  return 0;
 };
 
 export const getTotalTaxReserved = (): number => {
-  return mockTaxReservations
-    .filter(reservation => reservation.status === 'active')
-    .reduce((sum, reservation) => sum + reservation.amount, 0);
+  // LEGACY REMOVED: Use database API instead - /api/dashboard/tax-stats
+  return 0;
 };
 
 export const getCurrentYearRevenue = (): number => {
-  const currentYear = new Date().getFullYear();
-  return mockInvoices
-    .filter(invoice => invoice.createdAt.getFullYear() === currentYear && invoice.status === 'paid')
-    .reduce((sum, invoice) => sum + invoice.amount, 0);
+  // LEGACY REMOVED: Use database API instead - /api/dashboard/stats for current year revenue
+  return 0;
 };
 
 export const getEstimatedYearEndTax = (): number => {
@@ -718,7 +623,7 @@ export const getUserProfileByUserId = (userId: string): UserProfile | undefined 
 export const getExtendedDashboardStats = () => {
   const baseStats = {
     totalInvoices: mockInvoices.length,
-    totalRevenue: mockInvoices.reduce((sum, invoice) => sum + invoice.amount, 0),
+    totalRevenue: mockInvoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0),
     pendingInvoices: mockInvoices.filter(invoice => invoice.status === 'sent' || invoice.status === 'overdue').length,
     upcomingAppointments: getUpcomingAppointments().length,
     totalClients: mockClients.length,

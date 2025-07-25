@@ -1,0 +1,261 @@
+
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { secureRoute } from '@/lib/middleware/security-middleware';
+import { PERMISSIONS } from '@/lib/middleware/permission-middleware';
+import { auditService } from '@/lib/services/audit-service';
+import PDFGenerationService, { PDFGenerationOptions } from '@/lib/services/pdf-generation';
+import { mkdir, writeFile } from 'fs/promises';
+import { join } from 'path';
+import puppeteer from 'puppeteer';
+
+const prisma = new PrismaClient();
+
+export const dynamic = 'force-dynamic';
+
+// POST /api/invoices/[id]/pdf - Generate PDF for invoice
+export const POST = secureRoute(async (request: NextRequest, { params }: { params: { id: string } }) => {
+  const session = await getServerSession(authOptions);
+  
+  try {
+    const { regenerate = false, options = {} }: { regenerate?: boolean; options?: PDFGenerationOptions } = await request.json();
+
+    // Fetch invoice with full details
+    const invoice = await prisma.invoice.findFirst({
+      where: {
+        id: params.id,
+        userId: session?.user?.id,
+      },
+      include: {
+        client: true,
+        lineItems: {
+          include: {
+            standardService: {
+              select: {
+                name: true,
+                category: true,
+              }
+            }
+          },
+          orderBy: { sortOrder: 'asc' }
+        },
+        user: {
+          include: {
+            profile: true
+          }
+        }
+      },
+    });
+
+    if (!invoice) {
+      return NextResponse.json(
+        { error: 'Invoice not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if PDF already exists and regenerate is not requested
+    if (invoice.pdfGenerated && invoice.pdfPath && !regenerate) {
+      return NextResponse.json({
+        success: true,
+        pdfPath: invoice.pdfPath,
+        downloadUrl: PDFGenerationService.getPDFDownloadURL(invoice.pdfPath),
+        message: 'PDF already exists',
+        cached: true,
+      });
+    }
+
+    // Prepare company info from user profile
+    const profile = invoice.user.profile;
+    if (!profile) {
+      return NextResponse.json(
+        { error: 'User profile not found - required for invoice PDF generation' },
+        { status: 400 }
+      );
+    }
+
+    const companyInfo = {
+      name: profile.companyName,
+      address: profile.address,
+      postalCode: profile.postalCode,
+      city: profile.city,
+      country: profile.country,
+      kvkNumber: profile.kvkNumber,
+      vatNumber: profile.vatNumber,
+      iban: profile.iban,
+    };
+
+    // Prepare client info
+    const clientInfo = {
+      name: invoice.client.name,
+      company: invoice.client.company,
+      address: invoice.client.address,
+      postalCode: invoice.client.postalCode,
+      city: invoice.client.city,
+      country: invoice.client.country,
+    };
+
+    // Generate HTML content
+    const htmlContent = PDFGenerationService.generatePDFHTML({
+      invoice: {
+        ...invoice,
+        issueDate: invoice.issueDate.toISOString(),
+        dueDate: invoice.dueDate.toISOString(),
+        createdAt: invoice.createdAt.toISOString(),
+        updatedAt: invoice.updatedAt.toISOString(),
+        subtotal: Number(invoice.subtotal),
+        btwAmount: Number(invoice.btwAmount),
+        totalAmount: Number(invoice.totalAmount),
+        paidAmount: Number(invoice.paidAmount),
+        lineItems: invoice.lineItems.map(item => ({
+          ...item,
+          quantity: Number(item.quantity),
+          rate: Number(item.rate),
+          amount: Number(item.amount),
+        })),
+        client: invoice.client,
+      },
+      companyInfo,
+      clientInfo,
+    }, options);
+
+    // Ensure uploads directory exists
+    const uploadsDir = join(process.cwd(), 'uploads', 'invoices');
+    await mkdir(uploadsDir, { recursive: true });
+
+    // Generate PDF using Puppeteer
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    try {
+      const page = await browser.newPage();
+      await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+      
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '20mm',
+          right: '15mm',
+          bottom: '20mm',
+          left: '15mm'
+        }
+      });
+
+      await browser.close();
+
+      // Save PDF file
+      const pdfPath = PDFGenerationService.generatePDFPath(invoice.invoiceNumber);
+      const fullPdfPath = join(process.cwd(), 'uploads', pdfPath.substring(1)); // Remove leading slash
+      await writeFile(fullPdfPath, pdfBuffer);
+
+      // Update invoice record
+      const updatedInvoice = await prisma.invoice.update({
+        where: { id: params.id },
+        data: {
+          pdfPath,
+          pdfGenerated: true,
+          pdfGeneratedAt: new Date(),
+          updatedBy: session?.user?.id,
+          version: { increment: 1 },
+        },
+      });
+
+      // Log audit event
+      await auditService.logAction({
+        userId: session?.user?.id!,
+        action: 'UPDATE',
+        entity: 'Invoice',
+        entityId: invoice.id,
+        newValues: {
+          pdfGenerated: true,
+          pdfPath,
+          regenerate,
+        },
+        context: regenerate ? 'Invoice PDF regenerated' : 'Invoice PDF generated',
+      });
+
+      return NextResponse.json({
+        success: true,
+        pdfPath,
+        downloadUrl: PDFGenerationService.getPDFDownloadURL(pdfPath),
+        fileSize: pdfBuffer.length,
+        message: 'PDF generated successfully',
+        cached: false,
+      }, { status: 201 });
+
+    } catch (pdfError) {
+      await browser.close();
+      throw pdfError;
+    }
+
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    return NextResponse.json(
+      { error: 'Failed to generate PDF' },
+      { status: 500 }
+    );
+  }
+}, {
+  permissions: [PERMISSIONS.INVOICE_READ],
+  rateLimit: { maxRequests: 10, windowMs: 60000 }, // Limit PDF generation
+  validateCSRF: true,
+});
+
+// GET /api/invoices/[id]/pdf - Get PDF download URL or status
+export const GET = secureRoute(async (request: NextRequest, { params }: { params: { id: string } }) => {
+  const session = await getServerSession(authOptions);
+  
+  try {
+    const invoice = await prisma.invoice.findFirst({
+      where: {
+        id: params.id,
+        userId: session?.user?.id,
+      },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        pdfPath: true,
+        pdfGenerated: true,
+        pdfGeneratedAt: true,
+      },
+    });
+
+    if (!invoice) {
+      return NextResponse.json(
+        { error: 'Invoice not found' },
+        { status: 404 }
+      );
+    }
+
+    if (!invoice.pdfGenerated || !invoice.pdfPath) {
+      return NextResponse.json({
+        success: false,
+        pdfGenerated: false,
+        message: 'PDF not yet generated',
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      pdfGenerated: true,
+      pdfPath: invoice.pdfPath,
+      downloadUrl: PDFGenerationService.getPDFDownloadURL(invoice.pdfPath),
+      generatedAt: invoice.pdfGeneratedAt,
+    });
+
+  } catch (error) {
+    console.error('Error checking PDF status:', error);
+    return NextResponse.json(
+      { error: 'Failed to check PDF status' },
+      { status: 500 }
+    );
+  }
+}, {
+  permissions: [PERMISSIONS.INVOICE_READ],
+  rateLimit: { maxRequests: 50, windowMs: 60000 },
+});
