@@ -1,0 +1,104 @@
+
+name: Dependabot Merge Monitor
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  monitor-merge:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]' && github.event.pull_request.merged == true
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Check if merge was successful
+        id: merge-check
+        run: |
+          echo "Dependabot PR #${{ github.event.pull_request.number }} was merged"
+          echo "Title: ${{ github.event.pull_request.title }}"
+          echo "Merged by: ${{ github.event.pull_request.merged_by.login }}"
+          
+          # Store merge info for potential rollback
+          echo "merge-sha=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_OUTPUT
+          echo "pr-number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+
+      - name: Run post-merge tests
+        id: post-merge-tests
+        run: |
+          echo "Running basic health checks after Dependabot merge..."
+          
+          # Check if package.json is valid (if it exists)
+          if [ -f "package.json" ]; then
+            echo "Validating package.json..."
+            node -e "JSON.parse(require('fs').readFileSync('package.json', 'utf8'))" || exit 1
+          fi
+          
+          # Check if composer.json is valid (if it exists)
+          if [ -f "composer.json" ]; then
+            echo "Validating composer.json..."
+            php -r "json_decode(file_get_contents('composer.json'), true, 512, JSON_THROW_ON_ERROR);" || exit 1
+          fi
+          
+          # Check if requirements.txt dependencies can be parsed (if it exists)
+          if [ -f "requirements.txt" ]; then
+            echo "Validating requirements.txt format..."
+            python3 -c "
+            with open('requirements.txt', 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        if '==' not in line and '>=' not in line and '<=' not in line and '~=' not in line:
+                            if not line.replace('-', '').replace('_', '').replace('.', '').isalnum():
+                                print(f'Invalid line: {line}')
+                                exit(1)
+            " || exit 1
+          fi
+          
+          echo "Basic validation passed"
+
+      - name: Create rollback issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Rollback needed: Dependabot merge #${{ steps.merge-check.outputs.pr-number }} failed validation`,
+              body: `## Automatic Rollback Required
+              
+              **Failed Merge Details:**
+              - PR: #${{ steps.merge-check.outputs.pr-number }}
+              - Title: ${{ github.event.pull_request.title }}
+              - Merge SHA: ${{ steps.merge-check.outputs.merge-sha }}
+              - Merged by: ${{ github.event.pull_request.merged_by.login }}
+              
+              **Issue:**
+              Post-merge validation failed. This indicates the dependency update may have introduced breaking changes.
+              
+              **Recommended Actions:**
+              1. Review the failed checks in the workflow logs
+              2. Consider reverting commit ${{ steps.merge-check.outputs.merge-sha }}
+              3. Investigate the dependency changes
+              4. Create a manual fix if needed
+              
+              **Rollback Command:**
+              \`\`\`bash
+              git revert ${{ steps.merge-check.outputs.merge-sha }} -m 1
+              \`\`\`
+              
+              @ancproggrams please investigate this failed auto-merge.`,
+              labels: ['bug', 'dependabot', 'rollback-needed', 'high-priority']
+            });
+            
+            console.log(`Created rollback issue: ${issue.data.html_url}`);
+
+      - name: Log successful merge
+        if: success()
+        run: |
+          echo "✅ Dependabot merge completed successfully"
+          echo "PR #${{ steps.merge-check.outputs.pr-number }}: ${{ github.event.pull_request.title }}"
+          echo "No rollback needed - all validations passed"

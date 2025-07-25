@@ -1,0 +1,18 @@
+npm warn config optional Use `--omit=optional` to exclude optional dependencies, or
+npm warn config `--include=optional` to include them.
+npm warn config
+npm warn config       Default value does install optional deps unless otherwise omitted.
+npm warn deprecated google-p12-pem@3.1.4: Package is no longer maintained
+npm warn deprecated mumath@3.3.4: Redundant dependency in your project.
+
+added 1231 packages, removed 170 packages, changed 193 packages, and audited 1434 packages in 5m
+
+209 packages are looking for funding
+  run `npm fund` for details
+
+4 vulnerabilities (2 moderate, 2 high)
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.

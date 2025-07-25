@@ -1,0 +1,76 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@grpc/grpc-js": {
+      "name": "@grpc/grpc-js",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1097546,
+          "name": "@grpc/grpc-js",
+          "dependency": "@grpc/grpc-js",
+          "title": "@grpc/grpc-js can allocate memory for incoming messages well above configured limits",
+          "url": "https://github.com/advisories/GHSA-7v5v-9h63-cj86",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-789"
+          ],
+          "cvss": {
+            "score": 5.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+          },
+          "range": "<1.8.22"
+        }
+      ],
+      "effects": [
+        "immudb-node"
+      ],
+      "range": "<1.8.22",
+      "nodes": [
+        "node_modules/@grpc/grpc-js"
+      ],
+      "fixAvailable": {
+        "name": "immudb-node",
+        "version": "1.0.6",
+        "isSemVerMajor": true
+      }
+    },
+    "immudb-node": {
+      "name": "immudb-node",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "@grpc/grpc-js"
+      ],
+      "effects": [],
+      "range": ">=1.0.7",
+      "nodes": [
+        "node_modules/immudb-node"
+      ],
+      "fixAvailable": {
+        "name": "immudb-node",
+        "version": "1.0.6",
+        "isSemVerMajor": true
+      }
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 2,
+      "high": 0,
+      "critical": 0,
+      "total": 2
+    },
+    "dependencies": {
+      "prod": 1024,
+      "dev": 472,
+      "optional": 77,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 1510
+    }
+  }
+}
