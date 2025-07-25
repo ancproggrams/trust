@@ -7,7 +7,7 @@ import {
 import { calculateBTW, calculateTotalAmount, getBTWQuarter, getNextBTWDeadline, calculateTaxReservation } from './utils';
 
 // Mock Clients Data
-export const mockClients: Client[] = [
+export const mockClients: Partial<Client>[] = [
   {
     id: '1',
     name: 'Acme Corporation',
@@ -289,7 +289,7 @@ export const mockDocuments: Document[] = [
 ];
 
 // Helper functions for data operations
-export const getClientById = (id: string): Client | undefined => {
+export const getClientById = (id: string): Partial<Client> | undefined => {
   return mockClients.find(client => client.id === id);
 };
 

@@ -32,6 +32,7 @@ model User {
   documents   Document[]
   auditLogs   AuditLog[]
   creditors   Creditor[]
+  roles       UserRole[]
   
   @@map("users")
 }
@@ -283,17 +284,77 @@ model ComplianceAudit {
   @@map("compliance_audits")
 }
 
-// Core business entities (existing)
+// Enhanced Client model with complete onboarding flow
 model Client {
   id           String   @id @default(cuid())
   userId       String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
+  // Basic information - MANDATORY
   name         String
   email        String
   phone        String
+  
+  // Business details - MANDATORY for business clients
   company      String?
+  kvkNumber    String?   @unique
+  vatNumber    String?   @unique
+  businessType BusinessType @default(ZZP)
+  
+  // Contact details - MANDATORY
   address      String?
+  postalCode   String?
+  city         String?
+  country      String?   @default("Netherlands")
+  
+  // Admin/Accounting contact - MANDATORY for business clients
+  adminContactName    String?
+  adminContactEmail   String?
+  adminContactPhone   String?
+  adminDepartment     String?   // Administratie afdeling
+  
+  // Banking information - MANDATORY
+  iban            String?   @unique
+  bankName        String?
+  accountHolder   String?
+  postboxNumber   String?   // Optional postbus nummer
+  
+  // Onboarding workflow status
+  onboardingStatus    ClientOnboardingStatus @default(PENDING_VALIDATION)
+  onboardingStep      OnboardingStep @default(BASIC_INFO)
+  onboardingCompletedAt DateTime?
+  
+  // Validation status - MANDATORY for invoicing
+  validationStatus    ValidationStatus @default(PENDING)
+  validatedAt         DateTime?
+  validatedBy         String?
+  rejectionReason     String?
+  
+  // Admin approval - REQUIRED before invoicing
+  approvalStatus      ClientApprovalStatus @default(PENDING_APPROVAL)
+  approvedAt          DateTime?
+  approvedBy          String?
+  approvalNotes       String?
+  
+  // Email confirmation tracking
+  emailConfirmed      Boolean @default(false)
+  emailConfirmedAt    DateTime?
+  emailConfirmationToken String?
+  emailConfirmationExpiresAt DateTime?
+  
+  // KVK & BTW validation results
+  kvkValidated        Boolean @default(false)
+  kvkValidatedAt      DateTime?
+  btwValidated        Boolean @default(false)
+  btwValidatedAt      DateTime?
+  ibanValidated       Boolean @default(false)
+  ibanValidatedAt     DateTime?
+  
+  // Settings & Status
+  isActive            Boolean @default(true)
+  canCreateInvoices   Boolean @default(false) // Security control
+  invoicePermissionGrantedAt DateTime?
+  invoicePermissionGrantedBy String?
   
   totalInvoiced Decimal @db.Decimal(10,2) @default(0)
   
@@ -312,11 +373,200 @@ model Client {
   invoices     Invoice[]
   appointments Appointment[]
   documents    Document[]
+  approvals    ClientApproval[]
+  emailLogs    EmailLog[]
+  validations  ClientValidation[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   @@map("clients")
+}
+
+// Client approval workflow tracking
+model ClientApproval {
+  id       String   @id @default(cuid())
+  clientId String
+  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  // Approval details
+  status         ClientApprovalStatus @default(PENDING_APPROVAL)
+  requestedBy    String
+  requestedAt    DateTime @default(now())
+  
+  // Review details
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  approvalNotes  String?
+  rejectionReason String?
+  
+  // Supporting documentation
+  documents      String[] // Array of document URLs/paths
+  validationChecks Json?   // Validation results summary
+  
+  // Workflow metadata
+  workflowStep   String   // Current step in approval process
+  priority       ApprovalPriority @default(NORMAL)
+  deadline       DateTime?
+  
+  // Audit
+  immudbTxId     String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("client_approvals")
+}
+
+// Email tracking and delivery system
+model EmailLog {
+  id           String   @id @default(cuid())
+  clientId     String?
+  client       Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  
+  // Email details
+  type         EmailType
+  recipient    String   // Email address
+  subject      String
+  template     String   // Template name/ID
+  language     String   @default("nl")
+  
+  // Content & data
+  templateData Json?    // Data used for template rendering
+  htmlContent  String?  // Generated HTML content
+  textContent  String?  // Generated text content
+  
+  // Delivery tracking
+  status       EmailStatus @default(PENDING)
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  openedAt     DateTime?
+  clickedAt    DateTime?
+  
+  // Confirmation tracking (for client confirmations)
+  confirmationToken String?
+  confirmedAt       DateTime?
+  confirmationData  Json?
+  
+  // Error handling
+  errorMessage String?
+  retryCount   Int      @default(0)
+  maxRetries   Int      @default(3)
+  
+  // Provider tracking
+  provider     String?  // Email service provider
+  providerMessageId String?
+  
+  // Security
+  ipAddress    String?
+  userAgent    String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("email_logs")
+}
+
+// Client validation process tracking
+model ClientValidation {
+  id       String   @id @default(cuid())
+  clientId String
+  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  // Validation type and status
+  validationType ValidationMethod
+  status         ValidationStatus @default(PENDING)
+  
+  // Specific validation checks
+  kvkCheck       Json?  // KVK validation result details
+  btwCheck       Json?  // BTW validation result details
+  ibanCheck      Json?  // IBAN validation result details
+  emailCheck     Json?  // Email validation result details
+  phoneCheck     Json?  // Phone validation result details
+  addressCheck   Json?  // Address validation result details
+  
+  // Validation metadata
+  requestedBy    String
+  requestedAt    DateTime @default(now())
+  validatedBy    String?
+  validatedAt    DateTime?
+  
+  // Results and documentation
+  overallScore   Decimal? @db.Decimal(3,2) // 0.00 to 1.00
+  findings       Json?    // Detailed validation findings
+  recommendations String? // Validation recommendations
+  
+  // Notes and documentation
+  notes          String?
+  documents      String[] // Supporting documents
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("client_validations")
+}
+
+// Role-based access control
+model UserRole {
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  role         UserRoleType
+  permissions  String[]     // Array of permission strings
+  
+  // Role metadata
+  assignedBy   String
+  assignedAt   DateTime @default(now())
+  expiresAt    DateTime?
+  isActive     Boolean @default(true)
+  
+  // Scope restrictions (optional)
+  scopeType    String?  // 'CLIENT', 'INVOICE', 'GLOBAL'
+  scopeId      String?  // Specific entity ID if scoped
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("user_roles")
+}
+
+// Admin notification system
+model AdminNotification {
+  id       String   @id @default(cuid())
+  
+  // Notification details
+  type         NotificationType
+  title        String
+  message      String
+  priority     NotificationPriority @default(MEDIUM)
+  
+  // Target audience
+  targetRoles  String[] // Array of roles that should see this
+  targetUsers  String[] // Specific user IDs (optional)
+  
+  // Related entities
+  entityType   String?  // 'CLIENT', 'INVOICE', 'CREDITOR'
+  entityId     String?  // Related entity ID
+  
+  // Action required
+  actionRequired Boolean @default(false)
+  actionUrl     String?
+  actionLabel   String?
+  
+  // Lifecycle
+  publishedAt   DateTime?
+  expiresAt     DateTime?
+  isActive      Boolean @default(true)
+  
+  // Tracking
+  viewedBy      String[] // Array of user IDs who have viewed
+  acknowledgedBy String[] // Array of user IDs who have acknowledged
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("admin_notifications")
 }
 
 model Invoice {
@@ -584,4 +834,90 @@ enum ComplianceCheckType {
   REGULATORY
   RETENTION_POLICY
   PERIODIC_REVIEW
+}
+
+// Client onboarding workflow enums
+enum ClientOnboardingStatus {
+  PENDING_VALIDATION
+  EMAIL_SENT
+  CLIENT_CONFIRMED
+  ADMIN_REVIEW
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum ClientApprovalStatus {
+  PENDING_APPROVAL
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  REQUIRES_CHANGES
+  ESCALATED
+}
+
+enum ApprovalPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// Email system enums
+enum EmailType {
+  CLIENT_CONFIRMATION
+  ADMIN_NOTIFICATION
+  APPROVAL_NOTIFICATION
+  REJECTION_NOTIFICATION
+  REMINDER
+  WELCOME
+  PASSWORD_RESET
+  INVOICE_NOTIFICATION
+  PAYMENT_REMINDER
+}
+
+enum EmailStatus {
+  PENDING
+  QUEUED
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  FAILED
+  BOUNCED
+  SPAM
+}
+
+// Role-based access control enums
+enum UserRoleType {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  ACCOUNTANT
+  USER
+  CLIENT_VIEWER
+  INVOICE_MANAGER
+  CREDITOR_MANAGER
+  READ_ONLY
+}
+
+// Notification system enums
+enum NotificationType {
+  VALIDATION_REQUIRED
+  PAYMENT_DUE
+  CREDITOR_VALIDATED
+  SYSTEM_ALERT
+  BTW_DEADLINE
+  CLIENT_APPROVAL_REQUIRED
+  INVOICE_PERMISSION_REQUEST
+  COMPLIANCE_WARNING
+  SECURITY_ALERT
+  WORKFLOW_UPDATE
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }

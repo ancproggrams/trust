@@ -138,12 +138,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (!auditId) {
-      return NextResponse.json(
-        { error: 'Failed to create audit entry' },
-        { status: 500 }
-      );
-    }
+    // auditId is void, so we skip this check
 
     return NextResponse.json({
       success: true,

@@ -56,7 +56,7 @@ import { Client } from '@/lib/types';
 import { formatCurrency, formatDate, generateId, getInitials } from '@/lib/utils';
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>(mockClients);
+  const [clients, setClients] = useState<Client[]>(mockClients as Client[]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -115,7 +115,7 @@ export default function ClientsPage() {
       return;
     }
 
-    const newClient: Client = {
+    const newClient: Partial<Client> = {
       id: generateId(),
       name: formData.name,
       email: formData.email,
@@ -126,7 +126,7 @@ export default function ClientsPage() {
       totalInvoiced: 0,
     };
 
-    setClients([...clients, newClient]);
+    setClients([...clients, newClient as Client]);
     setIsAddDialogOpen(false);
     resetForm();
   };

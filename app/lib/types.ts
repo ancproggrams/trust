@@ -8,13 +8,76 @@ export interface User {
 
 export interface Client {
   id: string;
+  userId: string;
+  // Basic information
   name: string;
   email: string;
   phone: string;
+  
+  // Business details
   company?: string;
+  kvkNumber?: string;
+  vatNumber?: string;
+  businessType: BusinessType;
+  
+  // Contact details
   address?: string;
-  createdAt: Date;
+  postalCode?: string;
+  city?: string;
+  country?: string;
+  
+  // Admin/Accounting contact
+  adminContactName?: string;
+  adminContactEmail?: string;
+  adminContactPhone?: string;
+  adminDepartment?: string;
+  
+  // Banking information
+  iban?: string;
+  bankName?: string;
+  accountHolder?: string;
+  postboxNumber?: string;
+  
+  // Workflow status
+  onboardingStatus: ClientOnboardingStatus;
+  onboardingStep: OnboardingStep;
+  onboardingCompletedAt?: Date;
+  
+  // Validation status
+  validationStatus: ValidationStatus;
+  validatedAt?: Date;
+  validatedBy?: string;
+  rejectionReason?: string;
+  
+  // Admin approval
+  approvalStatus: ClientApprovalStatus;
+  approvedAt?: Date;
+  approvedBy?: string;
+  approvalNotes?: string;
+  
+  // Email confirmation
+  emailConfirmed: boolean;
+  emailConfirmedAt?: Date;
+  emailConfirmationToken?: string;
+  emailConfirmationExpiresAt?: Date;
+  
+  // Validation results
+  kvkValidated: boolean;
+  kvkValidatedAt?: Date;
+  btwValidated: boolean;
+  btwValidatedAt?: Date;
+  ibanValidated: boolean;
+  ibanValidatedAt?: Date;
+  
+  // Security controls
+  isActive: boolean;
+  canCreateInvoices: boolean;
+  invoicePermissionGrantedAt?: Date;
+  invoicePermissionGrantedBy?: string;
+  
   totalInvoiced: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Invoice {
@@ -366,8 +429,16 @@ export type PaymentStatus = 'PENDING' | 'SCHEDULED' | 'PROCESSING' | 'COMPLETED'
 export type PaymentMethod = 'BANK_TRANSFER' | 'SEPA_DIRECT_DEBIT' | 'MANUAL';
 export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'VALIDATE' | 'REJECT' | 'APPROVE' | 'PAYMENT_PROCESS' | 'STATUS_CHANGE';
 export type DemoFeature = 'INVOICES' | 'CLIENTS' | 'APPOINTMENTS' | 'DOCUMENTS' | 'CREDITORS' | 'PAYMENTS' | 'BTW' | 'TAX';
-export type NotificationType = 'VALIDATION_REQUIRED' | 'PAYMENT_DUE' | 'CREDITOR_VALIDATED' | 'SYSTEM_ALERT' | 'BTW_DEADLINE';
+export type NotificationType = 'VALIDATION_REQUIRED' | 'PAYMENT_DUE' | 'CREDITOR_VALIDATED' | 'SYSTEM_ALERT' | 'BTW_DEADLINE' | 'CLIENT_APPROVAL_REQUIRED' | 'INVOICE_PERMISSION_REQUEST' | 'COMPLIANCE_WARNING' | 'SECURITY_ALERT' | 'WORKFLOW_UPDATE';
 export type NotificationPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+// New onboarding and workflow enum types
+export type ClientOnboardingStatus = 'PENDING_VALIDATION' | 'EMAIL_SENT' | 'CLIENT_CONFIRMED' | 'ADMIN_REVIEW' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
+export type ClientApprovalStatus = 'PENDING_APPROVAL' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'REQUIRES_CHANGES' | 'ESCALATED';
+export type ApprovalPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+export type EmailType = 'CLIENT_CONFIRMATION' | 'ADMIN_NOTIFICATION' | 'APPROVAL_NOTIFICATION' | 'REJECTION_NOTIFICATION' | 'REMINDER' | 'WELCOME' | 'PASSWORD_RESET' | 'INVOICE_NOTIFICATION' | 'PAYMENT_REMINDER';
+export type EmailStatus = 'PENDING' | 'QUEUED' | 'SENT' | 'DELIVERED' | 'OPENED' | 'CLICKED' | 'FAILED' | 'BOUNCED' | 'SPAM';
+export type UserRoleType = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'ACCOUNTANT' | 'USER' | 'CLIENT_VIEWER' | 'INVOICE_MANAGER' | 'CREDITOR_MANAGER' | 'READ_ONLY';
 
 // KvK API Integration Types
 export interface KvKCompanyData {
@@ -471,6 +542,235 @@ export interface CreditorFormData {
   // Validation states
   kvkValidation?: KvKValidationState;
   btwValidation?: BTWValidationState;
+}
+
+// Client onboarding workflow types
+export interface ClientApproval {
+  id: string;
+  clientId: string;
+  status: ClientApprovalStatus;
+  requestedBy: string;
+  requestedAt: Date;
+  reviewedBy?: string;
+  reviewedAt?: Date;
+  approvalNotes?: string;
+  rejectionReason?: string;
+  documents: string[];
+  validationChecks?: Record<string, any>;
+  workflowStep: string;
+  priority: ApprovalPriority;
+  deadline?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EmailLog {
+  id: string;
+  clientId?: string;
+  type: EmailType;
+  recipient: string;
+  subject: string;
+  template: string;
+  language: string;
+  templateData?: Record<string, any>;
+  htmlContent?: string;
+  textContent?: string;
+  status: EmailStatus;
+  sentAt?: Date;
+  deliveredAt?: Date;
+  openedAt?: Date;
+  clickedAt?: Date;
+  confirmationToken?: string;
+  confirmedAt?: Date;
+  confirmationData?: Record<string, any>;
+  errorMessage?: string;
+  retryCount: number;
+  maxRetries: number;
+  provider?: string;
+  providerMessageId?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ClientValidation {
+  id: string;
+  clientId: string;
+  validationType: ValidationMethod;
+  status: ValidationStatus;
+  kvkCheck?: Record<string, any>;
+  btwCheck?: Record<string, any>;
+  ibanCheck?: Record<string, any>;
+  emailCheck?: Record<string, any>;
+  phoneCheck?: Record<string, any>;
+  addressCheck?: Record<string, any>;
+  requestedBy: string;
+  requestedAt: Date;
+  validatedBy?: string;
+  validatedAt?: Date;
+  overallScore?: number;
+  findings?: Record<string, any>;
+  recommendations?: string;
+  notes?: string;
+  documents: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UserRole {
+  id: string;
+  userId: string;
+  role: UserRoleType;
+  permissions: string[];
+  assignedBy: string;
+  assignedAt: Date;
+  expiresAt?: Date;
+  isActive: boolean;
+  scopeType?: string;
+  scopeId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AdminNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  priority: NotificationPriority;
+  targetRoles: string[];
+  targetUsers: string[];
+  entityType?: string;
+  entityId?: string;
+  actionRequired: boolean;
+  actionUrl?: string;
+  actionLabel?: string;
+  publishedAt?: Date;
+  expiresAt?: Date;
+  isActive: boolean;
+  viewedBy: string[];
+  acknowledgedBy: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Enhanced client form for onboarding
+export interface ClientFormData {
+  // Basic information - Step 1
+  name: string;
+  email: string;
+  phone: string;
+  
+  // Business details - Step 2
+  company?: string;
+  kvkNumber?: string;
+  vatNumber?: string;
+  businessType: BusinessType;
+  
+  // Contact details - Step 3
+  address?: string;
+  postalCode?: string;
+  city?: string;
+  country: string;
+  
+  // Admin contact - Step 4
+  adminContactName?: string;
+  adminContactEmail?: string;
+  adminContactPhone?: string;
+  adminDepartment?: string;
+  
+  // Banking info - Step 5
+  iban?: string;
+  bankName?: string;
+  accountHolder?: string;
+  postboxNumber?: string;
+  
+  // Validation states
+  kvkValidation?: KvKValidationState;
+  btwValidation?: BTWValidationState;
+  
+  // Workflow
+  onboardingStep: OnboardingStep;
+  acceptedTerms: boolean;
+  acceptedPrivacy: boolean;
+}
+
+// Email template system
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  type: EmailType;
+  language: string;
+  subject: string;
+  htmlTemplate: string;
+  textTemplate: string;
+  variables: string[];
+  isActive: boolean;
+  version: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EmailTemplateData {
+  clientName: string;
+  companyName?: string;
+  confirmationUrl?: string;
+  adminContactName?: string;
+  adminContactEmail?: string;
+  rejectionReason?: string;
+  approvalNotes?: string;
+  nextSteps?: string;
+  supportEmail: string;
+  supportPhone: string;
+  platformUrl: string;
+  brandName: string;
+  [key: string]: any;
+}
+
+// Admin dashboard types
+export interface AdminDashboardStats {
+  pendingApprovals: number;
+  pendingValidations: number;
+  emailsSentToday: number;
+  emailsFailedToday: number;
+  newClientsThisWeek: number;
+  completedOnboardingsThisWeek: number;
+  averageApprovalTime: number; // hours
+  clientsByStatus: Record<ClientOnboardingStatus, number>;
+  validationsByType: Record<ValidationMethod, number>;
+  emailsByStatus: Record<EmailStatus, number>;
+}
+
+export interface WorkflowState {
+  clientId: string;
+  currentStep: OnboardingStep;
+  completedSteps: OnboardingStep[];
+  validationResults: {
+    kvk: boolean;
+    btw: boolean;
+    iban: boolean;
+    email: boolean;
+    phone: boolean;
+  };
+  requiresAdminReview: boolean;
+  blockers: string[];
+  nextAction: string;
+  estimatedCompletion?: Date;
+}
+
+// Permission system
+export interface Permission {
+  action: string;
+  resource: string;
+  scope?: string;
+}
+
+export interface PermissionCheck {
+  hasPermission: boolean;
+  reason?: string;
+  requiredRole?: UserRoleType;
+  requiredPermissions?: string[];
 }
 
 // Re-export audit types for convenience
