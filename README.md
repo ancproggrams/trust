@@ -36,3 +36,17 @@ ZZP Trust is een platform voor zzp'ers en kleine ondernemers. Het biedt een voll
 1. Clone de repository
 2. Voer `yarn` uit in de map `app`
 3. Start de ontwikkelserver met `yarn dev`
+
+
+
+## CI/CD Pipeline Status
+
+[![CI](https://github.com/ancproggrams/trust/actions/workflows/ci.yml/badge.svg)](https://github.com/ancproggrams/trust/actions/workflows/ci.yml)
+[![CD](https://github.com/ancproggrams/trust/actions/workflows/cd.yml/badge.svg)](https://github.com/ancproggrams/trust/actions/workflows/cd.yml)
+[![Security](https://github.com/ancproggrams/trust/actions/workflows/security.yml/badge.svg)](https://github.com/ancproggrams/trust/actions/workflows/security.yml)
+
+De CI/CD pipeline is nu actief en bevat:
+- Continuous Integration (CI) met testing en linting
+- Continuous Deployment (CD) naar staging en productie
+- Security scanning en vulnerability checks
+- Automated dependency updates via Dependabot
