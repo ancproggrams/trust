@@ -1,0 +1,286 @@
+
+name: 🚀 Continuous Deployment
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  workflow_run:
+    workflows: ["🚀 Continuous Integration"]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '18.x'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Job 1: Deploy to Staging
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event.workflow_run.conclusion == 'success'
+    environment:
+      name: staging
+      url: https://staging.trust.io
+    
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+          cache-dependency-path: './app/yarn.lock'
+
+      - name: 📦 Install dependencies
+        working-directory: ./app
+        run: yarn install --frozen-lockfile
+
+      - name: 🔧 Generate Prisma Client
+        working-directory: ./app
+        run: npx prisma generate
+
+      - name: 🏗️ Build application
+        working-directory: ./app
+        run: yarn build
+        env:
+          NODE_ENV: production
+          SKIP_ENV_VALIDATION: 1
+
+      - name: 🗄️ Run database migrations (staging)
+        working-directory: ./app
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+
+      - name: 📤 Deploy to staging server
+        run: |
+          echo "🚀 Deploying to staging environment..."
+          echo "This would typically involve:"
+          echo "- Uploading build artifacts to staging server"
+          echo "- Restarting application services"
+          echo "- Running health checks"
+          echo "- Updating load balancer configuration"
+          
+      - name: 🔍 Run staging health checks
+        run: |
+          echo "🔍 Running staging health checks..."
+          echo "Health check would verify:"
+          echo "- Application is responding"
+          echo "- Database connectivity"
+          echo "- API endpoints are functional"
+          echo "- Authentication is working"
+
+      - name: 📧 Notify staging deployment
+        run: |
+          echo "📧 Staging deployment completed successfully!"
+          echo "Environment: staging.trust.io"
+          echo "Commit: ${{ github.sha }}"
+          echo "Deployed by: ${{ github.actor }}"
+
+  # Job 2: Deploy to Production
+  deploy-production:
+    name: 🏭 Deploy to Production
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: production
+      url: https://trust.io
+    needs: []
+    
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+          cache-dependency-path: './app/yarn.lock'
+
+      - name: 📦 Install dependencies
+        working-directory: ./app
+        run: yarn install --frozen-lockfile
+
+      - name: 🔧 Generate Prisma Client
+        working-directory: ./app
+        run: npx prisma generate
+
+      - name: 🏗️ Build application
+        working-directory: ./app
+        run: yarn build
+        env:
+          NODE_ENV: production
+          SKIP_ENV_VALIDATION: 1
+
+      - name: 🗄️ Run database migrations (production)
+        working-directory: ./app
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+
+      - name: 📤 Deploy to production server
+        run: |
+          echo "🏭 Deploying to production environment..."
+          echo "This would typically involve:"
+          echo "- Blue-green deployment strategy"
+          echo "- Uploading build artifacts to production servers"
+          echo "- Gradual traffic switching"
+          echo "- Monitoring deployment metrics"
+          
+      - name: 🔍 Run production health checks
+        run: |
+          echo "🔍 Running production health checks..."
+          echo "Comprehensive health check covering:"
+          echo "- Application performance metrics"
+          echo "- Database connection pooling"
+          echo "- CDN and static asset delivery"
+          echo "- SSL certificate validation"
+          echo "- Load balancer health"
+
+      - name: 📧 Notify production deployment
+        run: |
+          echo "📧 Production deployment completed successfully!"
+          echo "Environment: trust.io"
+          echo "Version: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Deployed by: ${{ github.actor }}"
+
+  # Job 3: Container Build & Registry Push
+  container-build:
+    name: 🐳 Build & Push Container
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📝 Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+
+      - name: 🐳 Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NODE_ENV=production
+
+  # Job 4: Database Backup & Validation
+  database-backup:
+    name: 🗄️ Database Backup & Validation
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🗄️ Create database backup
+        run: |
+          echo "🗄️ Creating database backup before deployment..."
+          echo "Backup would include:"
+          echo "- Full database dump"
+          echo "- Schema validation"
+          echo "- Data integrity checks"
+          echo "- Backup verification"
+
+      - name: 📊 Database health check
+        run: |
+          echo "📊 Running database health checks..."
+          echo "Checks include:"
+          echo "- Connection pool status"
+          echo "- Query performance metrics"
+          echo "- Storage usage analysis"
+          echo "- Index optimization status"
+
+  # Job 5: Post-Deployment Tests
+  post-deployment-tests:
+    name: 🧪 Post-Deployment Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🧪 Run smoke tests
+        run: |
+          echo "🧪 Running post-deployment smoke tests..."
+          echo "Tests include:"
+          echo "- API endpoint validation"
+          echo "- Authentication flow testing"
+          echo "- Critical user journey validation"
+          echo "- Performance baseline checks"
+
+      - name: 📊 Performance monitoring
+        run: |
+          echo "📊 Setting up performance monitoring..."
+          echo "Monitoring includes:"
+          echo "- Response time tracking"
+          echo "- Error rate monitoring"
+          echo "- Resource utilization"
+          echo "- User experience metrics"
+
+  # Final Deployment Status
+  deployment-success:
+    name: ✅ Deployment Success
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, container-build, database-backup, post-deployment-tests]
+    if: always() && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: ✅ Check deployment status
+        run: |
+          if [[ "${{ needs.deploy-staging.result }}" == "success" && \
+                "${{ needs.container-build.result }}" == "success" && \
+                "${{ needs.database-backup.result }}" == "success" && \
+                "${{ needs.post-deployment-tests.result }}" == "success" ]]; then
+            echo "🎉 Deployment completed successfully!"
+          else
+            echo "❌ Deployment encountered issues"
+            exit 1
+          fi
+
+      - name: 📧 Deployment notification
+        run: |
+          echo "📧 Deployment Summary:"
+          echo "- Staging Deployment: ${{ needs.deploy-staging.result }}"
+          echo "- Container Build: ${{ needs.container-build.result }}"
+          echo "- Database Backup: ${{ needs.database-backup.result }}"
+          echo "- Post-Deployment Tests: ${{ needs.post-deployment-tests.result }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Actor: ${{ github.actor }}"

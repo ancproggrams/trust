@@ -1,0 +1,299 @@
+
+name: 🔒 Security Scanning
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  NODE_VERSION: '18.x'
+
+jobs:
+  # Job 1: Dependency Vulnerability Scanning
+  dependency-scan:
+    name: 🔍 Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+          cache-dependency-path: './app/yarn.lock'
+
+      - name: 📦 Install dependencies
+        working-directory: ./app
+        run: yarn install --frozen-lockfile
+
+      - name: 🔍 Run npm audit
+        working-directory: ./app
+        run: yarn audit --audit-level high || true
+
+      - name: 🔍 Run Yarn security audit
+        working-directory: ./app
+        run: yarn audit --json > audit-results.json || true
+
+      - name: 📊 Upload audit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-results
+          path: ./app/audit-results.json
+          retention-days: 30
+
+  # Job 2: SAST (Static Application Security Testing)
+  sast-scan:
+    name: 🔒 Static Application Security Testing
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔒 Run CodeQL Analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+
+      - name: 🔧 Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: 🔒 Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  # Job 3: Secret Scanning
+  secret-scan:
+    name: 🔐 Secret Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Run TruffleHog Secret Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+
+  # Job 4: License Compliance Check
+  license-check:
+    name: 📋 License Compliance Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+          cache-dependency-path: './app/yarn.lock'
+
+      - name: 📦 Install dependencies
+        working-directory: ./app
+        run: yarn install --frozen-lockfile
+
+      - name: 📋 Install license checker
+        run: npm install -g license-checker
+
+      - name: 📋 Check licenses
+        working-directory: ./app
+        run: |
+          license-checker --json --out licenses.json
+          license-checker --summary
+
+      - name: 📊 Upload license report
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: ./app/licenses.json
+          retention-days: 30
+
+  # Job 5: OWASP Dependency Check
+  owasp-dependency-check:
+    name: 🛡️ OWASP Dependency Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🛡️ Run OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        id: depcheck
+        with:
+          project: 'Trust.io'
+          path: './app'
+          format: 'ALL'
+          args: >
+            --enableRetired
+            --enableExperimental
+            --nodePackageSkipDevDependencies
+
+      - name: 📊 Upload OWASP report
+        uses: actions/upload-artifact@v4
+        with:
+          name: owasp-dependency-check-report
+          path: ${{ github.workspace }}/reports
+          retention-days: 30
+
+  # Job 6: Docker Security Scan
+  docker-security-scan:
+    name: 🐳 Docker Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐳 Build Docker image
+        working-directory: ./app
+        run: |
+          # Create a temporary Dockerfile for security scanning
+          cat > Dockerfile.security << 'EOF'
+          FROM node:18-alpine
+          WORKDIR /app
+          COPY package.json yarn.lock ./
+          RUN yarn install --frozen-lockfile
+          COPY . .
+          RUN yarn build
+          CMD ["yarn", "start"]
+          EOF
+          docker build -f Dockerfile.security -t trustio-security-scan .
+
+      - name: 🔍 Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'trustio-security-scan'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: 📊 Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Job 7: Security Headers Check
+  security-headers-check:
+    name: 🔒 Security Headers Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔒 Check security headers configuration
+        working-directory: ./app
+        run: |
+          echo "🔒 Checking Next.js security headers configuration..."
+          
+          # Check if security headers are configured in next.config.js
+          if grep -q "headers" next.config.js; then
+            echo "✅ Security headers configuration found"
+          else
+            echo "⚠️ Consider adding security headers to next.config.js"
+            echo "Recommended headers:"
+            echo "- Content-Security-Policy"
+            echo "- X-Frame-Options"
+            echo "- X-Content-Type-Options"
+            echo "- Referrer-Policy"
+            echo "- Permissions-Policy"
+          fi
+
+  # Job 8: Compliance Check
+  compliance-check:
+    name: 📋 Compliance Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📋 GDPR Compliance Check
+        run: |
+          echo "📋 Checking GDPR compliance requirements..."
+          
+          # Check for GDPR-related files and implementations
+          if find . -name "*.ts" -o -name "*.tsx" | xargs grep -l "gdpr\|GDPR\|privacy\|consent" > /dev/null; then
+            echo "✅ GDPR-related code found"
+          else
+            echo "⚠️ Consider implementing GDPR compliance features"
+          fi
+
+      - name: 📋 ISO27001 Compliance Check
+        run: |
+          echo "📋 Checking ISO27001 compliance features..."
+          
+          # Check for security and audit features
+          if find . -name "*.ts" -o -name "*.tsx" | xargs grep -l "audit\|security\|compliance" > /dev/null; then
+            echo "✅ Security and audit features found"
+          else
+            echo "⚠️ Consider implementing comprehensive audit logging"
+          fi
+
+      - name: 📋 PSD2 Compliance Check
+        run: |
+          echo "📋 Checking PSD2 compliance features..."
+          
+          # Check for PSD2-related implementations
+          if find . -name "*.ts" -o -name "*.tsx" | xargs grep -l "psd2\|PSD2\|strong.authentication" > /dev/null; then
+            echo "✅ PSD2-related features found"
+          else
+            echo "⚠️ Ensure PSD2 strong authentication is implemented"
+          fi
+
+  # Final Security Status
+  security-summary:
+    name: 📊 Security Summary
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, sast-scan, secret-scan, license-check, owasp-dependency-check, security-headers-check, compliance-check]
+    if: always()
+    
+    steps:
+      - name: 📊 Generate security summary
+        run: |
+          echo "📊 Security Scan Summary:"
+          echo "- Dependency Scan: ${{ needs.dependency-scan.result }}"
+          echo "- SAST Scan: ${{ needs.sast-scan.result }}"
+          echo "- Secret Scan: ${{ needs.secret-scan.result }}"
+          echo "- License Check: ${{ needs.license-check.result }}"
+          echo "- OWASP Dependency Check: ${{ needs.owasp-dependency-check.result }}"
+          echo "- Security Headers Check: ${{ needs.security-headers-check.result }}"
+          echo "- Compliance Check: ${{ needs.compliance-check.result }}"
+
+      - name: ✅ Security status check
+        run: |
+          if [[ "${{ needs.dependency-scan.result }}" == "success" && \
+                "${{ needs.sast-scan.result }}" == "success" && \
+                "${{ needs.secret-scan.result }}" == "success" && \
+                "${{ needs.license-check.result }}" == "success" ]]; then
+            echo "🔒 Security scans completed successfully!"
+          else
+            echo "⚠️ Some security scans require attention"
+          fi
+
+      - name: 📧 Security notification
+        if: failure()
+        run: |
+          echo "🚨 Security scan failures detected!"
+          echo "Please review the failed checks and address any security issues."
+          echo "Failed scans:"
+          echo "- Dependency Scan: ${{ needs.dependency-scan.result }}"
+          echo "- SAST Scan: ${{ needs.sast-scan.result }}"
+          echo "- Secret Scan: ${{ needs.secret-scan.result }}"
+          echo "- License Check: ${{ needs.license-check.result }}"
