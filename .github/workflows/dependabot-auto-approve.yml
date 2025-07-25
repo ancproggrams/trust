@@ -43,21 +43,21 @@ jobs:
 
       - name: Auto-approve security updates
         if: steps.pr-metadata.outputs.is-security == 'true'
-        uses: hmarr/auto-approve-action@v3
+        uses: hmarr/auto-approve-action@v4
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           review-message: "Auto-approving security update from Dependabot"
 
       - name: Auto-approve patch updates
         if: steps.pr-metadata.outputs.update-type == 'patch' && steps.pr-metadata.outputs.is-security == 'false'
-        uses: hmarr/auto-approve-action@v3
+        uses: hmarr/auto-approve-action@v4
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           review-message: "Auto-approving patch update from Dependabot"
 
       - name: Auto-approve minor updates (with conditions)
         if: steps.pr-metadata.outputs.update-type == 'minor' && steps.pr-metadata.outputs.is-security == 'false'
-        uses: hmarr/auto-approve-action@v3
+        uses: hmarr/auto-approve-action@v4
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           review-message: "Auto-approving minor update from Dependabot (low risk)"
