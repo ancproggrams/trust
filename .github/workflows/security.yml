@@ -21,7 +21,7 @@ jobs:
     
     steps:
       - name: 📦 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -56,7 +56,7 @@ jobs:
     
     steps:
       - name: 📦 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🔒 Run CodeQL Analysis
         uses: github/codeql-action/init@v3
@@ -76,7 +76,7 @@ jobs:
     
     steps:
       - name: 📦 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🔐 Run TruffleHog Secret Scan
         uses: trufflesecurity/trufflehog@main
@@ -93,7 +93,7 @@ jobs:
     
     steps:
       - name: 📦 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
@@ -129,7 +129,7 @@ jobs:
     
     steps:
       - name: 📦 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🛡️ Run OWASP Dependency Check
         uses: dependency-check/Dependency-Check_Action@main
@@ -158,7 +158,7 @@ jobs:
     
     steps:
       - name: 📦 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🐳 Build Docker image
         working-directory: ./app
@@ -195,7 +195,7 @@ jobs:
     
     steps:
       - name: 📦 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🔒 Check security headers configuration
         working-directory: ./app
@@ -222,7 +222,7 @@ jobs:
     
     steps:
       - name: 📦 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 📋 GDPR Compliance Check
         run: |
